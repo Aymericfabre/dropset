@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0B0E11" />
+<title>Drop Set</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B0E11; --surface:#13181D; --surface-2:#1A2127; --line:#26303A;
+    --text:#F2F5F7; --muted:#8593A0; --drop:#FF6A2B; --pulse:#3DDC97; --track:#222C35;
+    --display:"Saira Condensed", system-ui, sans-serif;
+    --body:"Inter", system-ui, -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--ink); color:var(--text); font-family:var(--body);}
+  body{min-height:100vh; padding:max(18px,env(safe-area-inset-top)) 18px calc(20px + env(safe-area-inset-bottom)); -webkit-user-select:none; user-select:none;}
+  .wrap{max-width:480px; margin:0 auto;}
+
+  /* wordmark */
+  .logo{position:relative; width:148px; height:64px; margin-bottom:16px;}
+  .logo span{position:absolute; font-family:var(--display); font-weight:700; font-size:42px; line-height:1; letter-spacing:.02em; text-transform:uppercase;}
+  .logo .lo-drop{top:0; left:0; color:var(--text);}
+  .logo .lo-set{bottom:0; right:0; color:var(--drop);}
+
+  .tabs{display:flex; gap:6px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:4px; margin-bottom:16px;}
+  .tabs button{flex:1; background:transparent; color:var(--muted); border-radius:9px; padding:10px; font-size:14px; font-weight:600;}
+  .tabs button.active{background:var(--surface-2); color:var(--text); border:1px solid var(--line);}
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:14px;}
+  .eyebrow{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin:0 0 12px;}
+
+  label{display:block; font-size:12px; color:var(--muted); margin:0 0 6px; letter-spacing:.02em;}
+  input[type=text]{width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:13px 14px; font-size:16px; font-family:var(--body); outline:none;}
+  input[type=text]:focus{border-color:var(--pulse);}
+  .row{display:flex; gap:10px;} .row > *{flex:1;}
+  .grid2{display:flex; gap:12px;} .grid2 > *{flex:1;}
+
+  button{font-family:var(--body); cursor:pointer; border:none; color:var(--text);}
+  .btn{background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:13px 16px; font-size:15px; font-weight:600; transition:transform .05s ease, border-color .15s, background .15s;}
+  .btn:active{transform:scale(.97);}
+  .btn.ghost{background:transparent;}
+  .btn.go{background:var(--drop); color:#1A0A02; border-color:var(--drop); font-weight:700;}
+  .btn.mark{background:var(--pulse); color:#03261A; border-color:var(--pulse); font-weight:700;}
+  .btn.arm{background:var(--drop); color:#1A0A02; border-color:var(--drop); font-weight:700;}
+  .btn.danger{color:var(--drop); border-color:var(--drop); background:transparent;}
+  .btn.playing{background:var(--pulse); color:#03261A; border-color:var(--pulse);}
+  .btn.full{width:100%;} .btn.lg{padding:18px; font-size:18px;}
+  .btn[disabled]{opacity:.4; pointer-events:none;}
+
+  #player-shell{position:fixed; width:1px; height:1px; left:-9999px; top:0; overflow:hidden; opacity:0;}
+
+  .seg{display:flex; gap:4px; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:3px; margin-bottom:12px;}
+  .seg button{flex:1; background:transparent; color:var(--muted); border-radius:7px; padding:8px; font-size:13px; font-weight:600;}
+  .seg button.active{background:var(--line); color:var(--text);}
+
+  .videocaption{display:flex; align-items:center; gap:10px; margin-top:12px; min-height:20px;}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--muted); flex:none;}
+  .dot.live{background:var(--pulse); box-shadow:0 0 0 4px rgba(61,220,151,.18);}
+  .videocaption span{font-size:13px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+  .results{margin-top:12px; max-height:260px; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+  .srow{display:flex; gap:10px; align-items:center; padding:8px; border-radius:10px;}
+  .srow:active{background:var(--surface-2);}
+  .srow.muted{color:var(--muted); font-size:13px; justify-content:center; padding:14px; text-align:center;}
+  .srow img{width:68px; height:38px; object-fit:cover; border-radius:6px; flex:none; background:var(--surface-2);}
+  .srow .meta{min-width:0;}
+  .srow .meta .t{font-size:13px; font-weight:500; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .srow .meta .a{font-size:11px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+  .scrub{margin-top:14px;}
+  .scrub .times{display:flex; justify-content:space-between; font-family:var(--display); font-weight:600; font-size:15px; color:var(--muted); margin-bottom:6px; font-variant-numeric:tabular-nums;}
+  .scrub .times .cur{color:var(--text);}
+  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:6px; background:var(--track); border-radius:6px; outline:none; margin:0;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:26px; height:26px; border-radius:50%; background:var(--pulse); border:4px solid var(--ink); box-shadow:0 0 0 1px var(--line);}
+  input[type=range]::-moz-range-thumb{width:26px; height:26px; border:4px solid var(--ink); border-radius:50%; background:var(--pulse);}
+  input[type=range]:disabled::-webkit-slider-thumb{background:var(--muted);}
+
+  .marked{display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--surface-2); border:1px dashed var(--line); border-radius:10px; padding:12px 14px; margin-top:12px;}
+  .marked .lbl{font-size:12px; color:var(--muted); letter-spacing:.04em;}
+  .marked .val{font-family:var(--display); font-weight:700; font-size:26px; letter-spacing:.04em;}
+
+  .stepper{display:flex; align-items:center; border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+  .stepper button{background:var(--surface-2); width:46px; height:46px; font-size:22px; font-weight:600; color:var(--text);}
+  .stepper button:active{background:var(--line);}
+  .stepper .field{flex:1; text-align:center; font-family:var(--display); font-weight:700; font-size:22px; padding:0 4px;}
+  .stepper .field small{display:block; font-family:var(--body); font-weight:500; font-size:10px; letter-spacing:.14em; color:var(--muted); text-transform:uppercase; margin-top:-2px;}
+
+  .toggle{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:6px 0;}
+  .toggle .t-text{font-size:14px;}
+  .switch{position:relative; width:50px; height:30px; flex:none;}
+  .switch input{opacity:0; width:0; height:0;}
+  .slider{position:absolute; inset:0; background:var(--surface-2); border:1px solid var(--line); border-radius:30px; transition:.2s;}
+  .slider:before{content:""; position:absolute; height:22px; width:22px; left:3px; top:3px; background:var(--muted); border-radius:50%; transition:.2s;}
+  .switch input:checked + .slider{background:rgba(61,220,151,.2); border-color:var(--pulse);}
+  .switch input:checked + .slider:before{transform:translateX(20px); background:var(--pulse);}
+
+  .armedline{font-size:13px; line-height:1.55; margin-top:12px; background:var(--surface-2); border-radius:10px; padding:12px 14px; color:var(--muted);}
+  .armedline b{color:var(--text);} .armedline .pulse{color:var(--pulse);} .armedline .dp{color:var(--drop);}
+
+  #run{display:none;} #run.active{display:block;} #setup.hidden{display:none;}
+
+  .stage{background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:18px 18px 22px; position:relative; overflow:hidden;}
+  .stage.fire{border-color:var(--drop); box-shadow:0 0 0 1px var(--drop), 0 0 40px -8px var(--drop);}
+  .stage.rest{border-color:var(--pulse);}
+  .toprow{display:flex; justify-content:space-between; align-items:flex-start;}
+  .toprow .k{font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted);}
+  .toprow .tr{text-align:right;}
+  .setnum{font-family:var(--display); font-weight:700; font-size:42px; line-height:1; margin-top:2px; font-variant-numeric:tabular-nums;}
+  .setnum em{font-style:normal; color:var(--muted); font-size:24px;}
+  .elapsedbig{font-family:var(--display); font-weight:700; font-size:54px; line-height:.95; margin-top:0; font-variant-numeric:tabular-nums;}
+  .blocklbl{font-size:12px; color:var(--pulse); margin-top:4px; min-height:16px;}
+
+  .ringwrap{position:relative; width:216px; height:216px; margin:10px auto 2px;}
+  .ringwrap svg{transform:rotate(-90deg);}
+  .ringtxt{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .ringtxt .sec{font-family:var(--display); font-weight:700; font-size:66px; line-height:.9; font-variant-numeric:tabular-nums;}
+  .ringtxt .into{font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-top:4px;}
+  .nowline{font-size:13px; color:var(--pulse); margin-top:6px; min-height:18px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center;}
+
+  .dropbar{margin-top:12px; border-radius:12px; padding:14px; background:var(--surface-2); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:var(--display); font-weight:700; font-size:18px; letter-spacing:.05em; text-transform:uppercase; transition:.2s; text-align:center;}
+  .dropbar.armed{color:var(--drop); border-color:var(--drop);}
+  .dropbar.hit{background:var(--drop); color:#1A0A02; border-color:var(--drop);}
+  .dropbar.done{color:var(--muted);}
+
+  .countdown{text-align:center; padding:60px 0;}
+  .countdown .big{font-family:var(--display); font-weight:700; font-size:130px; line-height:1; color:var(--pulse);}
+  .countdown .sub{color:var(--muted); letter-spacing:.16em; text-transform:uppercase; font-size:12px;}
+
+  .hrow{display:flex; gap:12px; align-items:center; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:10px;}
+  .hrow img{width:84px; height:48px; object-fit:cover; border-radius:8px; flex:none; background:var(--surface-2);}
+  .hrow .meta{min-width:0; flex:1;}
+  .hrow .meta .t{font-size:14px; font-weight:500; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .hrow .meta .d{font-size:12px; color:var(--pulse); font-family:var(--display); font-weight:700; margin-top:3px;}
+  .hrow .load{background:var(--surface-2); border:1px solid var(--line); border-radius:9px; padding:9px 12px; font-size:13px; font-weight:600; flex:none;}
+  .hrow .load:active{background:var(--line);}
+  .empty{text-align:center; color:var(--muted); font-size:14px; padding:50px 20px; line-height:1.6;}
+
+  .footer-note{font-size:11px; color:var(--muted); text-align:center; margin-top:16px; line-height:1.5;}
+  #tabHistory{display:none;} #tabHistory.active{display:block;}
+  #tabWorkout{display:none;} #tabWorkout.active{display:block;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="logo"><span class="lo-drop">Drop</span><span class="lo-set">Set</span></div>
+
+  <div class="tabs">
+    <button id="tabBtnWorkout" class="active">Workout</button>
+    <button id="tabBtnHistory">History</button>
+  </div>
+
+  <!-- ============ WORKOUT TAB ============ -->
+  <div id="tabWorkout" class="active">
+
+    <div id="setup">
+      <div class="card">
+        <p class="eyebrow">Workout</p>
+        <div class="grid2">
+          <div>
+            <label>Sets per round</label>
+            <div class="stepper">
+              <button id="setsMinus">&minus;</button>
+              <div class="field"><span id="setsVal">10</span><small>sets</small></div>
+              <button id="setsPlus">+</button>
+            </div>
+          </div>
+          <div>
+            <label>Rounds</label>
+            <div class="stepper">
+              <button id="roundsMinus">&minus;</button>
+              <div class="field"><span id="roundsVal">1</span><small>rounds</small></div>
+              <button id="roundsPlus">+</button>
+            </div>
+          </div>
+        </div>
+
+        <label style="margin-top:14px;">Rest between rounds</label>
+        <div class="stepper">
+          <button id="restMinus">&minus;</button>
+          <div class="field"><span id="restVal">0:00</span><small>rest</small></div>
+          <button id="restPlus">+</button>
+        </div>
+
+        <div class="toggle" style="margin-top:16px;">
+          <div class="t-text">Beep on the minute</div>
+          <label class="switch"><input type="checkbox" id="beepOn" checked><span class="slider"></span></label>
+        </div>
+
+        <label style="margin-top:6px;">YouTube search key <small style="text-transform:none; letter-spacing:0;">&mdash; optional, for reliable search</small></label>
+        <input type="text" id="apiKey" placeholder="Leave blank to use free search" autocapitalize="off" autocorrect="off" spellcheck="false">
+      </div>
+
+      <div id="setupCueSlot"></div>
+
+      <button class="btn go lg full" id="startBtn">Start workout</button>
+      <p class="footer-note">Keep this screen open and your phone unlocked during the workout. iPhones pause web audio when the screen sleeps.</p>
+    </div>
+
+    <div id="run">
+      <div id="countdownView" class="countdown" style="display:none;">
+        <div class="big" id="cdBig">3</div>
+        <div class="sub">Get ready</div>
+      </div>
+
+      <div id="liveView" style="display:none;">
+        <div class="stage" id="stage">
+          <div class="toprow">
+            <div class="tl">
+              <div class="k" id="setK">Set</div>
+              <div class="setnum"><span id="curSet">1</span><em id="totWrap"> / <span id="totSet">10</span></em></div>
+              <div class="blocklbl" id="blockLbl"></div>
+            </div>
+            <div class="tr">
+              <div class="k">Elapsed</div>
+              <div class="elapsedbig" id="elapsed">0:00</div>
+            </div>
+          </div>
+          <div class="ringwrap">
+            <svg width="216" height="216" viewBox="0 0 216 216">
+              <circle cx="108" cy="108" r="96" fill="none" stroke="var(--track)" stroke-width="14"/>
+              <circle id="ring" cx="108" cy="108" r="96" fill="none" stroke="var(--pulse)" stroke-width="14" stroke-linecap="round" stroke-dasharray="603.19" stroke-dashoffset="603.19"/>
+            </svg>
+            <div class="ringtxt"><div class="sec" id="secLeft">60</div><div class="into" id="intoLabel">sec to next set</div></div>
+          </div>
+          <div class="nowline" id="nowLine"></div>
+        </div>
+
+        <button class="btn full" id="pauseBtn" style="margin-top:12px;">Pause timer</button>
+        <div class="dropbar" id="dropBar">No drop queued</div>
+        <div id="runCueSlot" style="margin-top:14px;"></div>
+        <button class="btn ghost full lg" id="stopBtn" style="margin-top:4px; color:var(--drop); border-color:var(--drop);">Stop workout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ HISTORY TAB ============ -->
+  <div id="tabHistory"><div id="historyList"></div></div>
+
+  <!-- ============ CUE PANEL ============ -->
+  <div id="cuePanel" class="card">
+    <p class="eyebrow">Cue a drop</p>
+    <div class="seg">
+      <button id="segSearch" class="active">Search</button>
+      <button id="segLink">Paste link</button>
+    </div>
+    <div id="searchMode">
+      <div class="row">
+        <input type="text" id="searchInput" placeholder="Song or artist" autocapitalize="off" style="flex:2.4;">
+        <button class="btn" id="searchBtn" style="flex:1;">Search</button>
+      </div>
+      <div class="results" id="results"></div>
+    </div>
+    <div id="linkMode" style="display:none;">
+      <div class="row">
+        <input type="text" id="url" placeholder="https://youtu.be/..." inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" style="flex:2.4;">
+        <button class="btn" id="loadBtn" style="flex:1;">Load</button>
+      </div>
+    </div>
+
+    <div class="videocaption"><span class="dot" id="vdot"></span><span id="vtitle">No song loaded yet.</span></div>
+
+    <div class="scrub">
+      <div class="times"><span class="cur" id="curLbl">0:00</span><span id="durLbl">0:00</span></div>
+      <input type="range" id="seek" min="0" max="100" step="1" value="0" disabled>
+    </div>
+
+    <div class="row" style="margin-top:14px;">
+      <button class="btn" id="playPreview" disabled>&#9654; Play</button>
+      <button class="btn mark" id="markBtn" disabled>Mark the drop</button>
+    </div>
+
+    <div class="marked">
+      <div><div class="lbl">Drop at</div><div class="val" id="dropDisplay">0:00</div></div>
+      <div style="flex:1;">
+        <label style="text-align:right;">Land on set</label>
+        <div class="stepper">
+          <button id="targetMinus">&minus;</button>
+          <div class="field"><span id="targetVal">3</span></div>
+          <button id="targetPlus">+</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn arm full" id="armBtn" style="margin-top:12px;" disabled>Queue this drop</button>
+    <button class="btn danger full" id="unqueueBtn" style="margin-top:8px; display:none;">Remove queued drop</button>
+    <div class="armedline" id="armedLine">Nothing queued yet.</div>
+  </div>
+
+</div>
+
+<div id="player-shell"><div id="playerA"></div><div id="playerB"></div></div>
+
+<script>
+/* ============ state ============ */
+const S = { videoId:null, dropSec:0, sets:10, rounds:1, restSec:0, target:3, beepOn:true };
+let armed = null;     // { videoId, title, dropSec, targetSet, dropTime, playAtT, seekStart, started, fired, deck }
+const RING_LEN = 2 * Math.PI * 96;
+
+const store = {
+  get(k,d){ try{const v=localStorage.getItem(k); return v===null?d:v;}catch(e){return d;} },
+  set(k,v){ try{localStorage.setItem(k,v);}catch(e){} }
+};
+const $ = id => document.getElementById(id);
+function thumb(id){ return 'https://img.youtube.com/vi/'+id+'/mqdefault.jpg'; }
+function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function decodeHtml(s){ const t=document.createElement('textarea'); t.innerHTML=s||''; return t.value; }
+function fmtClock(s){ s=Math.round(s); const neg=s<0; s=Math.abs(s); const m=Math.floor(s/60); return (neg?'-':'')+m+':'+String(s-m*60).padStart(2,'0'); }
+
+/* timeline helpers */
+function totalConfigured(){ return S.rounds*S.sets; }
+function setStartElapsed(g){ const ro=Math.floor((g-1)/S.sets); return (g-1)*60 + ro*S.restSec; }
+function totalDuration(){ return S.rounds*S.sets*60 + (S.rounds-1)*S.restSec; }
+
+/* ============ elements ============ */
+const vdot=$('vdot'), vtitle=$('vtitle'), seek=$('seek'), curLbl=$('curLbl'), durLbl=$('durLbl');
+const playPreview=$('playPreview'), markBtn=$('markBtn'), dropDisplay=$('dropDisplay');
+const targetVal=$('targetVal'), armBtn=$('armBtn'), unqueueBtn=$('unqueueBtn'), armedLine=$('armedLine');
+const setsVal=$('setsVal'), roundsVal=$('roundsVal'), restVal=$('restVal'), beepOn=$('beepOn'), apiKey=$('apiKey'), startBtn=$('startBtn');
+const setupEl=$('setup'), runEl=$('run'), countdownView=$('countdownView'), liveView=$('liveView'), cdBig=$('cdBig');
+const stage=$('stage'), setK=$('setK'), curSet=$('curSet'), totSet=$('totSet'), totWrap=$('totWrap'), blockLbl=$('blockLbl');
+const ring=$('ring'), secLeft=$('secLeft'), intoLabel=$('intoLabel'), elapsed=$('elapsed'), nowLine=$('nowLine');
+const dropBar=$('dropBar'), stopBtn=$('stopBtn'), pauseBtn=$('pauseBtn'), cuePanel=$('cuePanel');
+const searchInput=$('searchInput'), searchBtn=$('searchBtn'), results=$('results'), urlIn=$('url'), loadBtn=$('loadBtn');
+
+/* ============ two-deck YouTube engine ============ */
+const decks = { A:{player:null,ready:false,id:'',title:''}, B:{player:null,ready:false,id:'',title:''} };
+let cueDeckId='A', liveDeckId='B', pendingCue=null;
+const cueDeck=()=>decks[cueDeckId];
+const liveDeck=()=>decks[liveDeckId];
+
+window.onYouTubeIframeAPIReady=function(){
+  const opts=k=>({ height:'1', width:'1', videoId:'',
+    playerVars:{ playsinline:1, controls:0, rel:0, modestbranding:1 },
+    events:{ onReady:()=>{ decks[k].ready=true; if(pendingCue && k===cueDeckId){ loadIntoCue(pendingCue); pendingCue=null; } }, onStateChange:e=>onState(k,e) } });
+  decks.A.player=new YT.Player('playerA', opts('A'));
+  decks.B.player=new YT.Player('playerB', opts('B'));
+};
+(function(){ const t=document.createElement('script'); t.src='https://www.youtube.com/iframe_api'; document.head.appendChild(t); })();
+
+let previewing=false;
+function onState(k,e){
+  if(e.data===YT.PlayerState.PLAYING){
+    try{ const vd=decks[k].player.getVideoData(); if(vd&&vd.title){ decks[k].title=vd.title; if(k===liveDeckId) nowLine.textContent='Now playing: '+vd.title; if(k===cueDeckId) vtitle.textContent=vd.title; } }catch(err){}
+    if(k===cueDeckId){ previewing=true; updatePlayBtn(); }
+  } else if(e.data===YT.PlayerState.PAUSED || e.data===YT.PlayerState.ENDED){
+    if(k===cueDeckId){ previewing=false; updatePlayBtn(); }
+  }
+}
+function updatePlayBtn(){
+  if(previewing){ playPreview.innerHTML='&#10074;&#10074; Pause'; playPreview.classList.add('playing'); }
+  else { playPreview.innerHTML='&#9654; Play'; playPreview.classList.remove('playing'); }
+}
+function parseId(raw){
+  if(!raw) return null; raw=raw.trim();
+  if(/^[\w-]{11}$/.test(raw)) return raw;
+  try{ const u=new URL(raw);
+    if(u.hostname.includes('youtu.be')) return u.pathname.slice(1,12);
+    if(u.searchParams.get('v')) return u.searchParams.get('v');
+    const parts=u.pathname.split('/'); const i=parts.findIndex(p=>p==='shorts'||p==='embed');
+    if(i>=0 && parts[i+1]) return parts[i+1].slice(0,11);
+  }catch(e){ const m=raw.match(/[\w-]{11}/); if(m) return m[0]; }
+  return null;
+}
+
+function loadIntoCue(id, knownTitle){
+  const d=cueDeck();
+  if(!d.ready){ pendingCue=id; return; }
+  if(armed && !armed.started){ armed=null; }
+  d.id=id; d.title=knownTitle||''; S.videoId=id; S.dropSec=0;
+  dropDisplay.textContent='0:00';
+  vtitle.textContent=knownTitle||'Loading...';
+  try{ d.player.cueVideoById(id); }catch(e){}
+  playPreview.disabled=false; markBtn.disabled=false; seek.disabled=false; armBtn.disabled=false;
+  seek.value=0; curLbl.textContent='0:00'; durLbl.textContent='0:00'; previewing=false; updatePlayBtn();
+  pollTitle(cueDeckId); startPrevTimer(); updateArmedLine();
+}
+function pollTitle(deckId){
+  const d=decks[deckId]; let n=0;
+  const iv=setInterval(()=>{
+    n++; let t='';
+    try{ const vd=d.player.getVideoData(); t=vd&&vd.title?vd.title:''; }catch(e){}
+    if(t){ d.title=t; if(deckId===cueDeckId) vtitle.textContent=t; clearInterval(iv); updateArmedLine(); }
+    else if(n>24){ clearInterval(iv); }
+  },300);
+}
+
+let liveWasPlaying=false;
+function togglePreview(){
+  const d=cueDeck(); if(!d.ready||!d.id) return;
+  ensureAudio();
+  if(previewing){ try{ d.player.pauseVideo(); }catch(e){} previewing=false; resumeLive(); }
+  else { duckLive(); try{ d.player.unMute(); d.player.playVideo(); }catch(e){} previewing=true; }
+  updatePlayBtn();
+}
+function isPlaying(p){ try{ return p && p.getPlayerState && p.getPlayerState()===1; }catch(e){ return false; } }
+function duckLive(){ const L=liveDeck(); liveWasPlaying=isPlaying(L.player); try{ if(L.player) L.player.pauseVideo(); }catch(e){} }
+function resumeLive(){ if(liveWasPlaying){ try{ liveDeck().player.playVideo(); }catch(e){} liveWasPlaying=false; } }
+
+let prevTimer=null, lastScrub=0;
+function startPrevTimer(){
+  if(prevTimer) return;
+  prevTimer=setInterval(()=>{
+    const p=cueDeck().player; if(!p||!p.getDuration) return;
+    const dur=p.getDuration()||0;
+    if(dur>0 && Math.abs(parseFloat(seek.max)-dur)>0.5){ seek.max=Math.ceil(dur); durLbl.textContent=fmtClock(dur); }
+    if(Date.now()-lastScrub>400 && previewing){ const ct=Math.round(p.getCurrentTime()||0); seek.value=ct; curLbl.textContent=fmtClock(ct); }
+  },150);
+}
+seek.addEventListener('input', ()=>{
+  lastScrub=Date.now(); const v=Math.round(parseFloat(seek.value)); seek.value=v;
+  curLbl.textContent=fmtClock(v);
+  try{ cueDeck().player.seekTo(v,true); }catch(e){}
+});
+function markDrop(){
+  const v=Math.round(parseFloat(seek.value)||0);
+  S.dropSec=v; dropDisplay.textContent=fmtClock(v); store.set('ds_drop',String(v));
+  updateArmedLine();
+}
+
+/* ============ search ============ */
+let lastResults=[];
+function fetchTimeout(url,ms){ const c=new AbortController(); const id=setTimeout(()=>c.abort(),ms); return fetch(url,{signal:c.signal}).finally(()=>clearTimeout(id)); }
+async function searchYouTube(q){
+  const key=(apiKey.value||'').trim();
+  if(key){
+    const u='https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q='+encodeURIComponent(q)+'&key='+key;
+    const r=await fetch(u); if(!r.ok) throw new Error('key'); const j=await r.json();
+    return (j.items||[]).map(it=>({ id:it.id.videoId, title:decodeHtml(it.snippet.title), author:decodeHtml(it.snippet.channelTitle) })).filter(x=>x.id);
+  }
+  const piped=['https://pipedapi.kavin.rocks','https://pipedapi.adminforge.de','https://pipedapi.leptons.xyz'];
+  for(const b of piped){
+    try{ const r=await fetchTimeout(b+'/search?q='+encodeURIComponent(q)+'&filter=videos',6000); if(!r.ok) continue; const j=await r.json();
+      const items=(j.items||[]).map(x=>{ const id=x.url?(x.url.split('v=')[1]||'').slice(0,11):x.videoId; return {id, title:x.title, author:x.uploaderName||''}; }).filter(x=>x.id);
+      if(items.length) return items.slice(0,12);
+    }catch(e){}
+  }
+  const inv=['https://invidious.nerdvpn.de','https://inv.nadeko.net','https://yewtu.be'];
+  for(const b of inv){
+    try{ const r=await fetchTimeout(b+'/api/v1/search?q='+encodeURIComponent(q)+'&type=video',6000); if(!r.ok) continue; const j=await r.json();
+      const items=(j||[]).filter(x=>x.videoId).map(x=>({id:x.videoId, title:x.title, author:x.author||''}));
+      if(items.length) return items.slice(0,12);
+    }catch(e){}
+  }
+  throw new Error('unavailable');
+}
+async function runSearch(){
+  const q=(searchInput.value||'').trim(); if(!q) return;
+  results.innerHTML='<div class="srow muted">Searching...</div>';
+  try{
+    const items=await searchYouTube(q); lastResults=items;
+    if(!items.length){ results.innerHTML='<div class="srow muted">No results.</div>'; return; }
+    results.innerHTML=items.map((it,i)=>'<div class="srow" data-i="'+i+'"><img src="'+thumb(it.id)+'" loading="lazy"><div class="meta"><div class="t">'+escapeHtml(it.title)+'</div><div class="a">'+escapeHtml(it.author)+'</div></div></div>').join('');
+  }catch(e){
+    results.innerHTML='<div class="srow muted">Search is unavailable right now. Switch to Paste link, or add a search key in setup.</div>';
+  }
+}
+results.addEventListener('click', e=>{
+  const row=e.target.closest('.srow[data-i]'); if(!row) return;
+  const it=lastResults[parseInt(row.dataset.i)]; if(!it) return;
+  urlIn.value='https://youtu.be/'+it.id; loadIntoCue(it.id, decodeHtml(it.title));
+});
+
+/* ============ queue / unqueue ============ */
+function curElapsed(){ return running ? (performance.now()-startEpoch)/1000 : 0; }
+function earliestFutureSet(tNow){ const tot=totalConfigured(); for(let g=1; g<=tot; g++){ if(setStartElapsed(g) > tNow+0.2) return g; } return tot+1; }
+
+function armDrop(){
+  if(!S.videoId){ alert('Load or pick a song first.'); return; }
+  if(S.dropSec<=0){ alert('Drag to the drop and tap Mark the drop first.'); return; }
+  const tNow=curElapsed();
+  let target=S.target;
+  if(running){ const minSet=earliestFutureSet(tNow); if(target<minSet) target=minSet; }
+  if(target>totalConfigured()){ alert('That set is past the end of the session.'); return; }
+  S.target=target; targetVal.textContent=target;
+
+  const targetT=setStartElapsed(target);
+  const naturalStart=targetT - S.dropSec;
+  let playAtT, seekStart;
+  if(naturalStart >= tNow){ playAtT=naturalStart; seekStart=0; }
+  else { playAtT=Math.max(tNow,0); seekStart=Math.max(0, S.dropSec - (targetT - playAtT)); }
+
+  let msg='Queue drop on set '+target+'\n\n';
+  if(naturalStart < 0){
+    msg+='WARNING: to land the drop at '+fmtClock(targetT)+' elapsed, the song would need to start at '+fmtClock(naturalStart)+' \u2014 before the workout begins (0:00).\n\n';
+    msg+='Instead it will start at '+fmtClock(playAtT)+' elapsed, already '+fmtClock(seekStart)+' into the song, and still drop exactly at '+fmtClock(targetT)+' elapsed.';
+  } else if(running && naturalStart < tNow){
+    msg+='Starts now ('+fmtClock(playAtT)+' elapsed) part-way into the song.\nDrops at '+fmtClock(targetT)+' elapsed.';
+  } else {
+    msg+='Starts playing at '+fmtClock(playAtT)+' elapsed.\nDrops at '+fmtClock(targetT)+' elapsed.';
+  }
+  msg+='\n\nQueue it?';
+  if(!confirm(msg)) return;
+
+  armed={ videoId:S.videoId, title:cueDeck().title||'song', dropSec:S.dropSec, targetSet:target, dropTime:targetT, playAtT, seekStart, started:false, fired:false, deck:cueDeckId };
+  ensureAudio();
+  const d=cueDeck();
+  try{
+    if(running && playAtT<=curElapsed()+0.25){ duckLive(); d.player.unMute(); d.player.seekTo(seekStart,true); d.player.playVideo(); armed.started=true; swapDecks(); }
+    else { d.player.mute(); d.player.seekTo(seekStart,true); d.player.playVideo(); setTimeout(()=>{ try{ d.player.pauseVideo(); d.player.unMute(); }catch(e){} },220); }
+  }catch(e){}
+  saveHistory(armed.videoId, armed.title, armed.dropSec);
+  updateArmedLine();
+}
+function unqueueDrop(){
+  if(!armed || armed.started) return;
+  try{ decks[armed.deck].player.pauseVideo(); }catch(e){}
+  armed=null;
+  dropBar.className='dropbar'; dropBar.textContent='No drop queued';
+  updateArmedLine();
+}
+function swapDecks(){
+  const old=liveDeckId; liveDeckId=armed.deck; cueDeckId=old;
+  try{ decks[old].player.pauseVideo(); }catch(e){}
+  liveWasPlaying=false; resetCueUI();
+}
+function resetCueUI(){
+  vtitle.textContent='No song loaded yet.'; S.videoId=null; S.dropSec=0;
+  dropDisplay.textContent='0:00'; seek.value=0; seek.disabled=true; durLbl.textContent='0:00'; curLbl.textContent='0:00';
+  playPreview.disabled=true; markBtn.disabled=true; armBtn.disabled=true; previewing=false; updatePlayBtn();
+}
+function updateArmedLine(msg){
+  unqueueBtn.style.display=(armed && !armed.started)?'block':'none';
+  if(msg){ armedLine.textContent=msg; return; }
+  if(!armed){
+    if(S.videoId && S.dropSec>0) armedLine.innerHTML='Drop marked at <span class="pulse">'+fmtClock(S.dropSec)+'</span>. Pick a set and tap <b>Queue this drop</b>.';
+    else armedLine.textContent='Nothing queued yet.';
+    return;
+  }
+  armedLine.innerHTML='Queued <b>'+escapeHtml(armed.title)+'</b><br>starts at <span class="pulse">'+fmtClock(armed.playAtT)+'</span>, drops at <span class="dp">'+fmtClock(armed.dropTime)+'</span> (set '+armed.targetSet+').';
+}
+
+/* ============ history ============ */
+function getHistory(){ try{ return JSON.parse(store.get('ds_history','[]'))||[]; }catch(e){ return []; } }
+function saveHistory(id,title,dropSec){
+  let h=getHistory().filter(x=>x.id!==id);
+  h.unshift({id, title, dropSec, ts:Date.now()}); h=h.slice(0,60);
+  store.set('ds_history', JSON.stringify(h)); renderHistory();
+}
+function renderHistory(){
+  const h=getHistory(); const box=$('historyList');
+  if(!h.length){ box.innerHTML='<div class="empty">No songs yet.<br>Queue a drop on the Workout tab and it will show up here, ready to reload.</div>'; return; }
+  box.innerHTML=h.map((x,i)=>'<div class="hrow"><img src="'+thumb(x.id)+'" loading="lazy"><div class="meta"><div class="t">'+escapeHtml(x.title)+'</div><div class="d">Drop at '+fmtClock(x.dropSec)+'</div></div><button class="load" data-i="'+i+'">Load</button></div>').join('');
+}
+$('historyList').addEventListener('click', e=>{
+  const b=e.target.closest('.load[data-i]'); if(!b) return;
+  const x=getHistory()[parseInt(b.dataset.i)]; if(!x) return;
+  urlIn.value='https://youtu.be/'+x.id; loadIntoCue(x.id, x.title);
+  S.dropSec=x.dropSec; dropDisplay.textContent=fmtClock(x.dropSec);
+  switchTab('workout'); updateArmedLine();
+});
+
+/* ============ tabs / source toggle ============ */
+function switchTab(which){
+  const w=which==='workout';
+  $('tabWorkout').classList.toggle('active',w); $('tabHistory').classList.toggle('active',!w);
+  $('tabBtnWorkout').classList.toggle('active',w); $('tabBtnHistory').classList.toggle('active',!w);
+  if(!w) renderHistory();
+}
+$('tabBtnWorkout').onclick=()=>switchTab('workout');
+$('tabBtnHistory').onclick=()=>switchTab('history');
+$('segSearch').onclick=()=>{ $('segSearch').classList.add('active'); $('segLink').classList.remove('active'); $('searchMode').style.display='block'; $('linkMode').style.display='none'; };
+$('segLink').onclick=()=>{ $('segLink').classList.add('active'); $('segSearch').classList.remove('active'); $('searchMode').style.display='none'; $('linkMode').style.display='block'; };
+
+/* ============ steppers ============ */
+function clampTarget(){ const m=totalConfigured(); if(S.target>m)S.target=m; if(S.target<1)S.target=1; targetVal.textContent=S.target; }
+$('setsMinus').onclick=()=>{ S.sets=Math.max(1,S.sets-1); setsVal.textContent=S.sets; clampTarget(); store.set('ds_sets',S.sets); };
+$('setsPlus').onclick =()=>{ S.sets=Math.min(60,S.sets+1); setsVal.textContent=S.sets; clampTarget(); store.set('ds_sets',S.sets); };
+$('roundsMinus').onclick=()=>{ S.rounds=Math.max(1,S.rounds-1); roundsVal.textContent=S.rounds; clampTarget(); store.set('ds_rounds',S.rounds); };
+$('roundsPlus').onclick =()=>{ S.rounds=Math.min(10,S.rounds+1); roundsVal.textContent=S.rounds; clampTarget(); store.set('ds_rounds',S.rounds); };
+$('restMinus').onclick=()=>{ S.restSec=Math.max(0,S.restSec-30); restVal.textContent=fmtClock(S.restSec); store.set('ds_rest',S.restSec); };
+$('restPlus').onclick =()=>{ S.restSec=Math.min(600,S.restSec+30); restVal.textContent=fmtClock(S.restSec); store.set('ds_rest',S.restSec); };
+$('targetMinus').onclick=()=>{ S.target=Math.max(1,S.target-1); targetVal.textContent=S.target; store.set('ds_target',S.target); };
+$('targetPlus').onclick =()=>{ S.target=Math.min(totalConfigured(),S.target+1); targetVal.textContent=S.target; store.set('ds_target',S.target); };
+beepOn.onchange=()=>{ S.beepOn=beepOn.checked; store.set('ds_beep',S.beepOn?'1':'0'); };
+apiKey.onchange=()=>store.set('ds_apikey', apiKey.value.trim());
+searchBtn.onclick=runSearch;
+searchInput.addEventListener('keydown', e=>{ if(e.key==='Enter') runSearch(); });
+loadBtn.onclick=()=>{ const id=parseId(urlIn.value); if(!id){ vtitle.textContent='That did not look like a YouTube link.'; return; } store.set('ds_url',urlIn.value); loadIntoCue(id); };
+urlIn.onchange=()=>{ const id=parseId(urlIn.value); if(id){ store.set('ds_url',urlIn.value); loadIntoCue(id); } };
+playPreview.onclick=togglePreview; markBtn.onclick=markDrop; armBtn.onclick=armDrop; unqueueBtn.onclick=unqueueDrop;
+
+/* ============ beep (3x louder) ============ */
+let actx=null;
+function ensureAudio(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(actx&&actx.state==='suspended') actx.resume(); }
+function beep(freq,dur){
+  if(!actx) return;
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type='sine'; o.frequency.value=freq; o.connect(g); g.connect(actx.destination);
+  const t=actx.currentTime;
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(1.65,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.start(t); o.stop(t+dur+0.02);
+}
+const lowBeep=()=>beep(392,0.12), highBeep=()=>beep(784,0.20);
+
+/* ============ wake lock ============ */
+let wakeLock=null;
+async function keepAwake(){ try{ wakeLock=await navigator.wakeLock.request('screen'); }catch(e){} }
+function releaseAwake(){ try{ wakeLock&&wakeLock.release(); wakeLock=null; }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&running&&!wakeLock) keepAwake(); });
+
+/* ============ run ============ */
+let running=false, paused=false, raf=null, startEpoch=0, pauseStart=0, totalSec=0, lastSec=-1, dropDoneAt=0, schedule=[];
+
+function buildSchedule(){
+  schedule=[]; let tt=0, g=0;
+  for(let r=0;r<S.rounds;r++){
+    for(let i=0;i<S.sets;i++){ g++; schedule.push({type:'set', g, round:r+1, start:tt, end:tt+60}); tt+=60; }
+    if(r<S.rounds-1 && S.restSec>0){ schedule.push({type:'rest', round:r+1, start:tt, end:tt+S.restSec}); tt+=S.restSec; }
+  }
+  totalSec=tt;
+}
+function segAt(t){ for(const s of schedule){ if(t < s.end) return s; } return schedule[schedule.length-1]; }
+
+startBtn.onclick=async ()=>{
+  ensureAudio(); S.beepOn=beepOn.checked;
+  buildSchedule(); lastSec=-1; dropDoneAt=0; paused=false;
+  if(armed){ armed.started=false; armed.fired=false; }
+  ['A','B'].forEach(k=>{ try{ decks[k].player.mute(); decks[k].player.playVideo(); }catch(e){} });
+  setTimeout(()=>{ ['A','B'].forEach(k=>{ try{ if(!(armed&&armed.deck===k&&armed.started)) decks[k].player.pauseVideo(); decks[k].player.unMute(); }catch(e){} }); },180);
+
+  totSet.textContent=totalConfigured(); pauseBtn.textContent='Pause timer'; pauseBtn.disabled=false;
+  moveCue('run'); setupEl.classList.add('hidden'); runEl.classList.add('active');
+  keepAwake(); await countdown(3); beginRun();
+};
+
+function countdown(n){
+  return new Promise(res=>{
+    countdownView.style.display='block'; liveView.style.display='none';
+    let c=n;
+    const tick=()=>{
+      cdBig.textContent=c>0?c:'GO';
+      if(S.beepOn){ if(c>0) lowBeep(); else highBeep(); }
+      if(c<0){ res(); return; }
+      if(c===0){ setTimeout(res,250); return; }
+      c--; setTimeout(tick,1000);
+    };
+    tick();
+  });
+}
+function beginRun(){ countdownView.style.display='none'; liveView.style.display='block'; running=true; startEpoch=performance.now(); raf=requestAnimationFrame(loop); }
+
+function doBeep(sec){
+  if(!S.beepOn || sec<=0 || sec>=totalSec) return;
+  const s=segAt(sec); const intoSeg=sec-s.start, leftSeg=s.end-sec;
+  if(s.type==='set'){ if(intoSeg===0) highBeep(); else if(leftSeg<=3 && leftSeg>0) lowBeep(); }
+  else { if(leftSeg<=3 && leftSeg>0) lowBeep(); }
+}
+
+function loop(now){
+  if(!running||paused) return;
+  const t=(now-startEpoch)/1000;
+
+  if(armed && !armed.started && t>=armed.playAtT){
+    const d=decks[armed.deck];
+    try{ d.player.unMute(); d.player.seekTo(armed.seekStart,true); d.player.playVideo(); }catch(e){}
+    armed.started=true; swapDecks();
+  }
+
+  const sec=Math.floor(t);
+  if(sec!==lastSec){ lastSec=sec; doBeep(sec); }
+
+  const s=segAt(t);
+  if(s.type==='set'){
+    const into=t-s.start, left=s.end-t;
+    stage.classList.remove('rest');
+    setK.textContent='Set'; curSet.textContent=s.g; totWrap.style.display='';
+    blockLbl.textContent = S.rounds>1 ? ('Round '+s.round+' of '+S.rounds) : '';
+    secLeft.textContent=Math.ceil(left); intoLabel.textContent='sec to next set';
+    const isTarget = armed && armed.targetSet===s.g;
+    ring.style.stroke=(isTarget && into>55)?'var(--drop)':'var(--pulse)';
+    ring.setAttribute('stroke-dashoffset', RING_LEN*(1-(into/60)));
+  } else {
+    const into=t-s.start, left=s.end-t, dur=s.end-s.start;
+    stage.classList.add('rest');
+    setK.textContent='Rest'; curSet.textContent=fmtClock(left).replace(/^0:/,''); totWrap.style.display='none';
+    blockLbl.textContent='Next: Round '+(s.round+1)+' of '+S.rounds;
+    secLeft.textContent=Math.ceil(left); intoLabel.textContent='rest remaining';
+    ring.style.stroke='var(--pulse)';
+    ring.setAttribute('stroke-dashoffset', RING_LEN*(1-(into/dur)));
+  }
+
+  elapsed.textContent=fmtClock(t);
+
+  if(armed){
+    if(!armed.fired){
+      const toDrop=armed.dropTime-t;
+      if(toDrop<=0){ armed.fired=true; dropDoneAt=t; stage.classList.add('fire'); dropBar.className='dropbar hit'; dropBar.textContent='DROP'; setTimeout(()=>stage.classList.remove('fire'),1500); }
+      else if(toDrop<=10){ dropBar.className='dropbar armed'; dropBar.textContent='Drop in '+Math.ceil(toDrop)+'s'; }
+      else { dropBar.className='dropbar'; dropBar.textContent='Drop on set '+armed.targetSet; }
+    } else if(t-dropDoneAt>1.6){ dropBar.className='dropbar done'; dropBar.textContent='Drop done'; }
+  } else { dropBar.className='dropbar'; dropBar.textContent='No drop queued'; }
+
+  if(t>=totalSec){ finish(); return; }
+  raf=requestAnimationFrame(loop);
+}
+
+pauseBtn.onclick=()=>{
+  if(!running) return;
+  if(!paused){
+    paused=true; pauseStart=performance.now(); if(raf) cancelAnimationFrame(raf);
+    try{ liveDeck().player.pauseVideo(); }catch(e){}
+    pauseBtn.textContent='Resume timer';
+  } else {
+    paused=false; startEpoch+=performance.now()-pauseStart;
+    if(armed && armed.started && curElapsed()<totalSec){ try{ decks[liveDeckId].player.playVideo(); }catch(e){} }
+    pauseBtn.textContent='Pause timer'; raf=requestAnimationFrame(loop);
+  }
+};
+
+function finish(){
+  running=false; if(raf) cancelAnimationFrame(raf); releaseAwake();
+  if(S.beepOn){ highBeep(); setTimeout(()=>beep(1046,0.28),200); }
+  stage.classList.add('fire'); stage.classList.remove('rest');
+  setK.textContent='Done'; curSet.textContent=totalConfigured(); totWrap.style.display=''; secLeft.textContent='0'; intoLabel.textContent='complete'; blockLbl.textContent='';
+  dropBar.className='dropbar done'; dropBar.textContent=(armed&&armed.started)?'Complete \u2014 music still playing':'Workout complete';
+  pauseBtn.disabled=true;
+  /* music is intentionally left playing */
+}
+stopBtn.onclick=()=>stopRun(true);
+function stopRun(back){
+  running=false; paused=false; if(raf) cancelAnimationFrame(raf);
+  ['A','B'].forEach(k=>{ try{ decks[k].player.pauseVideo(); }catch(e){} });
+  releaseAwake();
+  if(back){ runEl.classList.remove('active'); setupEl.classList.remove('hidden'); moveCue('setup'); }
+}
+function moveCue(where){ ($(where==='run'?'runCueSlot':'setupCueSlot')).appendChild(cuePanel); }
+
+/* ============ home-screen icon ============ */
+function makeIcon(){
+  try{
+    const c=document.createElement('canvas'); c.width=180; c.height=180; const x=c.getContext('2d');
+    x.fillStyle='#0B0E11'; x.fillRect(0,0,180,180);
+    x.font='700 50px Inter, system-ui, sans-serif';
+    x.textAlign='left'; x.textBaseline='top'; x.fillStyle='#F2F5F7'; x.fillText('Drop',16,34);
+    x.textAlign='right'; x.textBaseline='bottom'; x.fillStyle='#FF6A2B'; x.fillText('Set',164,150);
+    const link=document.createElement('link'); link.rel='apple-touch-icon'; link.href=c.toDataURL('image/png'); document.head.appendChild(link);
+  }catch(e){}
+}
+
+/* ============ restore ============ */
+(function restore(){
+  moveCue('setup'); makeIcon();
+  urlIn.value=store.get('ds_url','');
+  S.sets=parseInt(store.get('ds_sets','10'))||10; setsVal.textContent=S.sets;
+  S.rounds=parseInt(store.get('ds_rounds','1'))||1; roundsVal.textContent=S.rounds;
+  S.restSec=parseInt(store.get('ds_rest','0'))||0; restVal.textContent=fmtClock(S.restSec);
+  S.target=parseInt(store.get('ds_target','3'))||3; clampTarget();
+  S.beepOn=store.get('ds_beep','1')==='1'; beepOn.checked=S.beepOn;
+  apiKey.value=store.get('ds_apikey','');
+  renderHistory(); updateArmedLine();
+})();
+</script>
+</body>
+</html>
