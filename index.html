@@ -22,7 +22,6 @@
   body{min-height:100vh; padding:max(18px,env(safe-area-inset-top)) 18px calc(20px + env(safe-area-inset-bottom)); -webkit-user-select:none; user-select:none;}
   .wrap{max-width:480px; margin:0 auto;}
 
-  /* wordmark */
   .logo{position:relative; width:148px; height:64px; margin-bottom:16px;}
   .logo span{position:absolute; font-family:var(--display); font-weight:700; font-size:42px; line-height:1; letter-spacing:.02em; text-transform:uppercase;}
   .logo .lo-drop{top:0; left:0; color:var(--text);}
@@ -108,7 +107,7 @@
   .stage{background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:18px 18px 22px; position:relative; overflow:hidden;}
   .stage.fire{border-color:var(--drop); box-shadow:0 0 0 1px var(--drop), 0 0 40px -8px var(--drop);}
   .stage.rest{border-color:var(--pulse);}
-  .toprow{display:flex; justify-content:space-between; align-items:flex-start;}
+  .toprow{display:flex; justify-content:space-between; align-items:flex-start; min-height:74px;}
   .toprow .k{font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted);}
   .toprow .tr{text-align:right;}
   .setnum{font-family:var(--display); font-weight:700; font-size:42px; line-height:1; margin-top:2px; font-variant-numeric:tabular-nums;}
@@ -119,7 +118,7 @@
   .ringwrap{position:relative; width:216px; height:216px; margin:10px auto 2px;}
   .ringwrap svg{transform:rotate(-90deg);}
   .ringtxt{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
-  .ringtxt .sec{font-family:var(--display); font-weight:700; font-size:66px; line-height:.9; font-variant-numeric:tabular-nums;}
+  .ringtxt .sec{font-family:var(--display); font-weight:700; font-size:62px; line-height:.9; font-variant-numeric:tabular-nums;}
   .ringtxt .into{font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-top:4px;}
   .nowline{font-size:13px; color:var(--pulse); margin-top:6px; min-height:18px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center;}
 
@@ -156,7 +155,6 @@
     <button id="tabBtnHistory">History</button>
   </div>
 
-  <!-- ============ WORKOUT TAB ============ -->
   <div id="tabWorkout" class="active">
 
     <div id="setup">
@@ -180,21 +178,18 @@
             </div>
           </div>
         </div>
-
         <label style="margin-top:14px;">Rest between rounds</label>
         <div class="stepper">
           <button id="restMinus">&minus;</button>
           <div class="field"><span id="restVal">0:00</span><small>rest</small></div>
           <button id="restPlus">+</button>
         </div>
-
         <div class="toggle" style="margin-top:16px;">
           <div class="t-text">Beep on the minute</div>
           <label class="switch"><input type="checkbox" id="beepOn" checked><span class="slider"></span></label>
         </div>
-
-        <label style="margin-top:6px;">YouTube search key <small style="text-transform:none; letter-spacing:0;">&mdash; optional, for reliable search</small></label>
-        <input type="text" id="apiKey" placeholder="Leave blank to use free search" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <label style="margin-top:6px;">YouTube search key <small style="text-transform:none; letter-spacing:0;">&mdash; optional, blank uses free search</small></label>
+        <input type="text" id="apiKey" placeholder="Leave blank if a key is built in" autocapitalize="off" autocorrect="off" spellcheck="false">
       </div>
 
       <div id="setupCueSlot"></div>
@@ -217,8 +212,8 @@
               <div class="setnum"><span id="curSet">1</span><em id="totWrap"> / <span id="totSet">10</span></em></div>
               <div class="blocklbl" id="blockLbl"></div>
             </div>
-            <div class="tr">
-              <div class="k">Elapsed</div>
+            <div class="tr" id="elapsedBlock">
+              <div class="k">Round time</div>
               <div class="elapsedbig" id="elapsed">0:00</div>
             </div>
           </div>
@@ -240,10 +235,8 @@
     </div>
   </div>
 
-  <!-- ============ HISTORY TAB ============ -->
   <div id="tabHistory"><div id="historyList"></div></div>
 
-  <!-- ============ CUE PANEL ============ -->
   <div id="cuePanel" class="card">
     <p class="eyebrow">Cue a drop</p>
     <div class="seg">
@@ -290,7 +283,7 @@
 
     <button class="btn arm full" id="armBtn" style="margin-top:12px;" disabled>Queue this drop</button>
     <button class="btn danger full" id="unqueueBtn" style="margin-top:8px; display:none;">Remove queued drop</button>
-    <div class="armedline" id="armedLine">Nothing queued yet.</div>
+    <div class="armedline" id="armedLine">Mark a drop, then pick the set to land it on.</div>
   </div>
 
 </div>
@@ -298,9 +291,12 @@
 <div id="player-shell"><div id="playerA"></div><div id="playerB"></div></div>
 
 <script>
+/* === paste your YouTube Data API key between the quotes to bake it in === */
+const BUILTIN_KEY = '';
+
 /* ============ state ============ */
 const S = { videoId:null, dropSec:0, sets:10, rounds:1, restSec:0, target:3, beepOn:true };
-let armed = null;     // { videoId, title, dropSec, targetSet, dropTime, playAtT, seekStart, started, fired, deck }
+let armed = null;
 const RING_LEN = 2 * Math.PI * 96;
 
 const store = {
@@ -316,7 +312,9 @@ function fmtClock(s){ s=Math.round(s); const neg=s<0; s=Math.abs(s); const m=Mat
 /* timeline helpers */
 function totalConfigured(){ return S.rounds*S.sets; }
 function setStartElapsed(g){ const ro=Math.floor((g-1)/S.sets); return (g-1)*60 + ro*S.restSec; }
-function totalDuration(){ return S.rounds*S.sets*60 + (S.rounds-1)*S.restSec; }
+function roundOf(g){ return Math.ceil(g/S.sets); }
+function setWithinRound(g){ return ((g-1)%S.sets)+1; }
+function roundStartElapsed(round){ return setStartElapsed((round-1)*S.sets+1); }
 
 /* ============ elements ============ */
 const vdot=$('vdot'), vtitle=$('vtitle'), seek=$('seek'), curLbl=$('curLbl'), durLbl=$('durLbl');
@@ -325,9 +323,36 @@ const targetVal=$('targetVal'), armBtn=$('armBtn'), unqueueBtn=$('unqueueBtn'), 
 const setsVal=$('setsVal'), roundsVal=$('roundsVal'), restVal=$('restVal'), beepOn=$('beepOn'), apiKey=$('apiKey'), startBtn=$('startBtn');
 const setupEl=$('setup'), runEl=$('run'), countdownView=$('countdownView'), liveView=$('liveView'), cdBig=$('cdBig');
 const stage=$('stage'), setK=$('setK'), curSet=$('curSet'), totSet=$('totSet'), totWrap=$('totWrap'), blockLbl=$('blockLbl');
-const ring=$('ring'), secLeft=$('secLeft'), intoLabel=$('intoLabel'), elapsed=$('elapsed'), nowLine=$('nowLine');
+const ring=$('ring'), secLeft=$('secLeft'), intoLabel=$('intoLabel'), elapsed=$('elapsed'), elapsedBlock=$('elapsedBlock'), nowLine=$('nowLine');
 const dropBar=$('dropBar'), stopBtn=$('stopBtn'), pauseBtn=$('pauseBtn'), cuePanel=$('cuePanel');
 const searchInput=$('searchInput'), searchBtn=$('searchBtn'), results=$('results'), urlIn=$('url'), loadBtn=$('loadBtn');
+
+/* ============ beeps via media channel (audible on silent switch) ============ */
+const AUD={low:null,high:null,fin:null};
+function wavURI(freq,dur,vol){
+  const sr=44100, n=Math.floor(sr*dur), buf=new ArrayBuffer(44+n*2), dv=new DataView(buf);
+  const ws=(o,s)=>{ for(let i=0;i<s.length;i++) dv.setUint8(o+i,s.charCodeAt(i)); };
+  ws(0,'RIFF'); dv.setUint32(4,36+n*2,true); ws(8,'WAVE'); ws(12,'fmt ');
+  dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,1,true);
+  dv.setUint32(24,sr,true); dv.setUint32(28,sr*2,true); dv.setUint16(32,2,true); dv.setUint16(34,16,true);
+  ws(36,'data'); dv.setUint32(40,n*2,true);
+  for(let i=0;i<n;i++){ const t=i/sr; const env=Math.min(1,t*180)*Math.min(1,(dur-t)*25); let v=Math.sin(2*Math.PI*freq*t)*vol*env; v=Math.max(-1,Math.min(1,v)); dv.setInt16(44+i*2, v*32767, true); }
+  let bin=''; const by=new Uint8Array(buf); for(let i=0;i<by.length;i++) bin+=String.fromCharCode(by[i]);
+  return 'data:audio/wav;base64,'+btoa(bin);
+}
+function initBeeps(){
+  try{
+    AUD.low=new Audio(wavURI(420,0.16,0.95));
+    AUD.high=new Audio(wavURI(840,0.22,1.0));
+    AUD.fin=new Audio(wavURI(1100,0.34,1.0));
+    [AUD.low,AUD.high,AUD.fin].forEach(a=>{ a.preload='auto'; a.volume=1; });
+  }catch(e){}
+}
+function primeBeeps(){
+  [AUD.low,AUD.high,AUD.fin].forEach(a=>{ if(!a) return; try{ a.muted=true; const p=a.play(); if(p&&p.catch)p.catch(()=>{}); setTimeout(()=>{ try{ a.pause(); a.currentTime=0; a.muted=false; }catch(e){} },120); }catch(e){} });
+}
+function playBeep(a){ if(!a||!S.beepOn) return; try{ a.currentTime=0; const p=a.play(); if(p&&p.catch)p.catch(()=>{}); }catch(e){} }
+const lowBeep=()=>playBeep(AUD.low), highBeep=()=>playBeep(AUD.high), finBeep=()=>playBeep(AUD.fin);
 
 /* ============ two-deck YouTube engine ============ */
 const decks = { A:{player:null,ready:false,id:'',title:''}, B:{player:null,ready:false,id:'',title:''} };
@@ -347,7 +372,7 @@ window.onYouTubeIframeAPIReady=function(){
 let previewing=false;
 function onState(k,e){
   if(e.data===YT.PlayerState.PLAYING){
-    try{ const vd=decks[k].player.getVideoData(); if(vd&&vd.title){ decks[k].title=vd.title; if(k===liveDeckId) nowLine.textContent='Now playing: '+vd.title; if(k===cueDeckId) vtitle.textContent=vd.title; } }catch(err){}
+    try{ const vd=decks[k].player.getVideoData(); if(vd&&vd.title){ decks[k].title=vd.title; if(k===cueDeckId) vtitle.textContent=vd.title; } }catch(err){}
     if(k===cueDeckId){ previewing=true; updatePlayBtn(); }
   } else if(e.data===YT.PlayerState.PAUSED || e.data===YT.PlayerState.ENDED){
     if(k===cueDeckId){ previewing=false; updatePlayBtn(); }
@@ -379,14 +404,14 @@ function loadIntoCue(id, knownTitle){
   try{ d.player.cueVideoById(id); }catch(e){}
   playPreview.disabled=false; markBtn.disabled=false; seek.disabled=false; armBtn.disabled=false;
   seek.value=0; curLbl.textContent='0:00'; durLbl.textContent='0:00'; previewing=false; updatePlayBtn();
-  pollTitle(cueDeckId); startPrevTimer(); updateArmedLine();
+  pollTitle(cueDeckId); startPrevTimer(); refreshQueueInfo();
 }
 function pollTitle(deckId){
   const d=decks[deckId]; let n=0;
   const iv=setInterval(()=>{
     n++; let t='';
     try{ const vd=d.player.getVideoData(); t=vd&&vd.title?vd.title:''; }catch(e){}
-    if(t){ d.title=t; if(deckId===cueDeckId) vtitle.textContent=t; clearInterval(iv); updateArmedLine(); }
+    if(t){ d.title=t; if(deckId===cueDeckId) vtitle.textContent=t; clearInterval(iv); refreshQueueInfo(); }
     else if(n>24){ clearInterval(iv); }
   },300);
 }
@@ -394,7 +419,6 @@ function pollTitle(deckId){
 let liveWasPlaying=false;
 function togglePreview(){
   const d=cueDeck(); if(!d.ready||!d.id) return;
-  ensureAudio();
   if(previewing){ try{ d.player.pauseVideo(); }catch(e){} previewing=false; resumeLive(); }
   else { duckLive(); try{ d.player.unMute(); d.player.playVideo(); }catch(e){} previewing=true; }
   updatePlayBtn();
@@ -421,14 +445,14 @@ seek.addEventListener('input', ()=>{
 function markDrop(){
   const v=Math.round(parseFloat(seek.value)||0);
   S.dropSec=v; dropDisplay.textContent=fmtClock(v); store.set('ds_drop',String(v));
-  updateArmedLine();
+  refreshQueueInfo();
 }
 
 /* ============ search ============ */
 let lastResults=[];
 function fetchTimeout(url,ms){ const c=new AbortController(); const id=setTimeout(()=>c.abort(),ms); return fetch(url,{signal:c.signal}).finally(()=>clearTimeout(id)); }
 async function searchYouTube(q){
-  const key=(apiKey.value||'').trim();
+  const key=((apiKey.value||'').trim()) || BUILTIN_KEY;
   if(key){
     const u='https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q='+encodeURIComponent(q)+'&key='+key;
     const r=await fetch(u); if(!r.ok) throw new Error('key'); const j=await r.json();
@@ -467,53 +491,43 @@ results.addEventListener('click', e=>{
   urlIn.value='https://youtu.be/'+it.id; loadIntoCue(it.id, decodeHtml(it.title));
 });
 
-/* ============ queue / unqueue ============ */
+/* ============ queue projection (round-relative) ============ */
 function curElapsed(){ return running ? (performance.now()-startEpoch)/1000 : 0; }
 function earliestFutureSet(tNow){ const tot=totalConfigured(); for(let g=1; g<=tot; g++){ if(setStartElapsed(g) > tNow+0.2) return g; } return tot+1; }
 
-function armDrop(){
-  if(!S.videoId){ alert('Load or pick a song first.'); return; }
-  if(S.dropSec<=0){ alert('Drag to the drop and tap Mark the drop first.'); return; }
+function queueProjection(){
   const tNow=curElapsed();
   let target=S.target;
   if(running){ const minSet=earliestFutureSet(tNow); if(target<minSet) target=minSet; }
-  if(target>totalConfigured()){ alert('That set is past the end of the session.'); return; }
-  S.target=target; targetVal.textContent=target;
-
-  const targetT=setStartElapsed(target);
-  const naturalStart=targetT - S.dropSec;
+  target=Math.min(target, totalConfigured());
+  const round=roundOf(target), swr=setWithinRound(target), rStart=roundStartElapsed(round);
+  const dropGlobal=setStartElapsed(target), dropRound=(swr-1)*60;
+  const naturalStartGlobal=dropGlobal - S.dropSec;
   let playAtT, seekStart;
-  if(naturalStart >= tNow){ playAtT=naturalStart; seekStart=0; }
-  else { playAtT=Math.max(tNow,0); seekStart=Math.max(0, S.dropSec - (targetT - playAtT)); }
+  if(naturalStartGlobal>=tNow){ playAtT=naturalStartGlobal; seekStart=0; }
+  else { playAtT=Math.max(tNow,0); seekStart=Math.max(0, S.dropSec-(dropGlobal-playAtT)); }
+  return {target, round, swr, rStart, dropGlobal, dropRound, naturalStartGlobal, playAtT, seekStart, startRound:playAtT-rStart};
+}
 
-  let msg='Queue drop on set '+target+'\n\n';
-  if(naturalStart < 0){
-    msg+='WARNING: to land the drop at '+fmtClock(targetT)+' elapsed, the song would need to start at '+fmtClock(naturalStart)+' \u2014 before the workout begins (0:00).\n\n';
-    msg+='Instead it will start at '+fmtClock(playAtT)+' elapsed, already '+fmtClock(seekStart)+' into the song, and still drop exactly at '+fmtClock(targetT)+' elapsed.';
-  } else if(running && naturalStart < tNow){
-    msg+='Starts now ('+fmtClock(playAtT)+' elapsed) part-way into the song.\nDrops at '+fmtClock(targetT)+' elapsed.';
-  } else {
-    msg+='Starts playing at '+fmtClock(playAtT)+' elapsed.\nDrops at '+fmtClock(targetT)+' elapsed.';
-  }
-  msg+='\n\nQueue it?';
-  if(!confirm(msg)) return;
-
-  armed={ videoId:S.videoId, title:cueDeck().title||'song', dropSec:S.dropSec, targetSet:target, dropTime:targetT, playAtT, seekStart, started:false, fired:false, deck:cueDeckId };
-  ensureAudio();
+function armDrop(){
+  if(!S.videoId){ refreshQueueInfo('Load or pick a song first.'); return; }
+  if(S.dropSec<=0){ refreshQueueInfo('Drag to the drop and tap Mark the drop first.'); return; }
+  const p=queueProjection();
+  if(p.target>totalConfigured()){ refreshQueueInfo('That set is past the end of the session.'); return; }
+  S.target=p.target; targetVal.textContent=p.target;
+  armed={ videoId:S.videoId, title:cueDeck().title||'song', dropSec:S.dropSec, targetSet:p.target, dropTime:p.dropGlobal, playAtT:p.playAtT, seekStart:p.seekStart, started:false, fired:false, deck:cueDeckId };
   const d=cueDeck();
   try{
-    if(running && playAtT<=curElapsed()+0.25){ duckLive(); d.player.unMute(); d.player.seekTo(seekStart,true); d.player.playVideo(); armed.started=true; swapDecks(); }
-    else { d.player.mute(); d.player.seekTo(seekStart,true); d.player.playVideo(); setTimeout(()=>{ try{ d.player.pauseVideo(); d.player.unMute(); }catch(e){} },220); }
+    if(running && p.playAtT<=curElapsed()+0.25){ duckLive(); d.player.unMute(); d.player.seekTo(p.seekStart,true); d.player.playVideo(); armed.started=true; swapDecks(); }
+    else { d.player.mute(); d.player.seekTo(p.seekStart,true); d.player.playVideo(); setTimeout(()=>{ try{ d.player.pauseVideo(); d.player.unMute(); }catch(e){} },220); }
   }catch(e){}
   saveHistory(armed.videoId, armed.title, armed.dropSec);
-  updateArmedLine();
+  refreshQueueInfo();
 }
 function unqueueDrop(){
   if(!armed || armed.started) return;
   try{ decks[armed.deck].player.pauseVideo(); }catch(e){}
-  armed=null;
-  dropBar.className='dropbar'; dropBar.textContent='No drop queued';
-  updateArmedLine();
+  armed=null; dropBar.className='dropbar'; dropBar.textContent='No drop queued'; refreshQueueInfo();
 }
 function swapDecks(){
   const old=liveDeckId; liveDeckId=armed.deck; cueDeckId=old;
@@ -525,15 +539,29 @@ function resetCueUI(){
   dropDisplay.textContent='0:00'; seek.value=0; seek.disabled=true; durLbl.textContent='0:00'; curLbl.textContent='0:00';
   playPreview.disabled=true; markBtn.disabled=true; armBtn.disabled=true; previewing=false; updatePlayBtn();
 }
-function updateArmedLine(msg){
+
+/* live-updating info under the Queue button */
+function refreshQueueInfo(msg){
   unqueueBtn.style.display=(armed && !armed.started)?'block':'none';
   if(msg){ armedLine.textContent=msg; return; }
-  if(!armed){
-    if(S.videoId && S.dropSec>0) armedLine.innerHTML='Drop marked at <span class="pulse">'+fmtClock(S.dropSec)+'</span>. Pick a set and tap <b>Queue this drop</b>.';
-    else armedLine.textContent='Nothing queued yet.';
-    return;
+  if(armed){
+    const r=roundOf(armed.targetSet), swr=setWithinRound(armed.targetSet), dropRound=(swr-1)*60;
+    let l='Queued <b>'+escapeHtml(armed.title)+'</b><br>drops at <span class="dp">'+fmtClock(dropRound)+'</span>';
+    if(S.rounds>1) l+=' in round '+r;
+    l+=' (set '+armed.targetSet+')'+(armed.started?' \u2014 playing':'');
+    armedLine.innerHTML=l; return;
   }
-  armedLine.innerHTML='Queued <b>'+escapeHtml(armed.title)+'</b><br>starts at <span class="pulse">'+fmtClock(armed.playAtT)+'</span>, drops at <span class="dp">'+fmtClock(armed.dropTime)+'</span> (set '+armed.targetSet+').';
+  if(!(S.videoId && S.dropSec>0)){ armedLine.textContent='Mark a drop, then pick the set to land it on.'; return; }
+  const p=queueProjection();
+  let l='';
+  if(S.rounds>1) l+='Round '+p.round+', set '+p.swr+'<br>';
+  l+='Drops at <span class="dp">'+fmtClock(p.dropRound)+'</span>'+(S.rounds>1?' into the round':'')+'<br>';
+  l+= p.seekStart>0
+    ? ('Starts at <span class="pulse">'+fmtClock(Math.max(0,p.startRound))+'</span>, '+fmtClock(p.seekStart)+' into the track')
+    : ('Starts at <span class="pulse">'+fmtClock(p.startRound)+'</span>');
+  if(p.naturalStartGlobal<0){ l+='<br><span class="dp">Heads up:</span> would need to start before 0:00, so it begins part-way in.'; }
+  else if(p.startRound<0){ l+='<br>Begins '+fmtClock(-p.startRound)+' before this round (during the previous round or rest).'; }
+  armedLine.innerHTML=l;
 }
 
 /* ============ history ============ */
@@ -553,7 +581,7 @@ $('historyList').addEventListener('click', e=>{
   const x=getHistory()[parseInt(b.dataset.i)]; if(!x) return;
   urlIn.value='https://youtu.be/'+x.id; loadIntoCue(x.id, x.title);
   S.dropSec=x.dropSec; dropDisplay.textContent=fmtClock(x.dropSec);
-  switchTab('workout'); updateArmedLine();
+  switchTab('workout'); refreshQueueInfo();
 });
 
 /* ============ tabs / source toggle ============ */
@@ -570,14 +598,14 @@ $('segLink').onclick=()=>{ $('segLink').classList.add('active'); $('segSearch').
 
 /* ============ steppers ============ */
 function clampTarget(){ const m=totalConfigured(); if(S.target>m)S.target=m; if(S.target<1)S.target=1; targetVal.textContent=S.target; }
-$('setsMinus').onclick=()=>{ S.sets=Math.max(1,S.sets-1); setsVal.textContent=S.sets; clampTarget(); store.set('ds_sets',S.sets); };
-$('setsPlus').onclick =()=>{ S.sets=Math.min(60,S.sets+1); setsVal.textContent=S.sets; clampTarget(); store.set('ds_sets',S.sets); };
-$('roundsMinus').onclick=()=>{ S.rounds=Math.max(1,S.rounds-1); roundsVal.textContent=S.rounds; clampTarget(); store.set('ds_rounds',S.rounds); };
-$('roundsPlus').onclick =()=>{ S.rounds=Math.min(10,S.rounds+1); roundsVal.textContent=S.rounds; clampTarget(); store.set('ds_rounds',S.rounds); };
-$('restMinus').onclick=()=>{ S.restSec=Math.max(0,S.restSec-30); restVal.textContent=fmtClock(S.restSec); store.set('ds_rest',S.restSec); };
-$('restPlus').onclick =()=>{ S.restSec=Math.min(600,S.restSec+30); restVal.textContent=fmtClock(S.restSec); store.set('ds_rest',S.restSec); };
-$('targetMinus').onclick=()=>{ S.target=Math.max(1,S.target-1); targetVal.textContent=S.target; store.set('ds_target',S.target); };
-$('targetPlus').onclick =()=>{ S.target=Math.min(totalConfigured(),S.target+1); targetVal.textContent=S.target; store.set('ds_target',S.target); };
+$('setsMinus').onclick=()=>{ S.sets=Math.max(1,S.sets-1); setsVal.textContent=S.sets; clampTarget(); store.set('ds_sets',S.sets); refreshQueueInfo(); };
+$('setsPlus').onclick =()=>{ S.sets=Math.min(60,S.sets+1); setsVal.textContent=S.sets; clampTarget(); store.set('ds_sets',S.sets); refreshQueueInfo(); };
+$('roundsMinus').onclick=()=>{ S.rounds=Math.max(1,S.rounds-1); roundsVal.textContent=S.rounds; clampTarget(); store.set('ds_rounds',S.rounds); refreshQueueInfo(); };
+$('roundsPlus').onclick =()=>{ S.rounds=Math.min(10,S.rounds+1); roundsVal.textContent=S.rounds; clampTarget(); store.set('ds_rounds',S.rounds); refreshQueueInfo(); };
+$('restMinus').onclick=()=>{ S.restSec=Math.max(0,S.restSec-30); restVal.textContent=fmtClock(S.restSec); store.set('ds_rest',S.restSec); refreshQueueInfo(); };
+$('restPlus').onclick =()=>{ S.restSec=Math.min(600,S.restSec+30); restVal.textContent=fmtClock(S.restSec); store.set('ds_rest',S.restSec); refreshQueueInfo(); };
+$('targetMinus').onclick=()=>{ S.target=Math.max(1,S.target-1); targetVal.textContent=S.target; store.set('ds_target',S.target); refreshQueueInfo(); };
+$('targetPlus').onclick =()=>{ S.target=Math.min(totalConfigured(),S.target+1); targetVal.textContent=S.target; store.set('ds_target',S.target); refreshQueueInfo(); };
 beepOn.onchange=()=>{ S.beepOn=beepOn.checked; store.set('ds_beep',S.beepOn?'1':'0'); };
 apiKey.onchange=()=>store.set('ds_apikey', apiKey.value.trim());
 searchBtn.onclick=runSearch;
@@ -585,19 +613,6 @@ searchInput.addEventListener('keydown', e=>{ if(e.key==='Enter') runSearch(); })
 loadBtn.onclick=()=>{ const id=parseId(urlIn.value); if(!id){ vtitle.textContent='That did not look like a YouTube link.'; return; } store.set('ds_url',urlIn.value); loadIntoCue(id); };
 urlIn.onchange=()=>{ const id=parseId(urlIn.value); if(id){ store.set('ds_url',urlIn.value); loadIntoCue(id); } };
 playPreview.onclick=togglePreview; markBtn.onclick=markDrop; armBtn.onclick=armDrop; unqueueBtn.onclick=unqueueDrop;
-
-/* ============ beep (3x louder) ============ */
-let actx=null;
-function ensureAudio(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(actx&&actx.state==='suspended') actx.resume(); }
-function beep(freq,dur){
-  if(!actx) return;
-  const o=actx.createOscillator(), g=actx.createGain();
-  o.type='sine'; o.frequency.value=freq; o.connect(g); g.connect(actx.destination);
-  const t=actx.currentTime;
-  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(1.65,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  o.start(t); o.stop(t+dur+0.02);
-}
-const lowBeep=()=>beep(392,0.12), highBeep=()=>beep(784,0.20);
 
 /* ============ wake lock ============ */
 let wakeLock=null;
@@ -619,13 +634,13 @@ function buildSchedule(){
 function segAt(t){ for(const s of schedule){ if(t < s.end) return s; } return schedule[schedule.length-1]; }
 
 startBtn.onclick=async ()=>{
-  ensureAudio(); S.beepOn=beepOn.checked;
+  S.beepOn=beepOn.checked; primeBeeps();
   buildSchedule(); lastSec=-1; dropDoneAt=0; paused=false;
   if(armed){ armed.started=false; armed.fired=false; }
   ['A','B'].forEach(k=>{ try{ decks[k].player.mute(); decks[k].player.playVideo(); }catch(e){} });
   setTimeout(()=>{ ['A','B'].forEach(k=>{ try{ if(!(armed&&armed.deck===k&&armed.started)) decks[k].player.pauseVideo(); decks[k].player.unMute(); }catch(e){} }); },180);
 
-  totSet.textContent=totalConfigured(); pauseBtn.textContent='Pause timer'; pauseBtn.disabled=false;
+  totSet.textContent=totalConfigured(); pauseBtn.textContent='Pause timer'; pauseBtn.disabled=false; nowLine.textContent='';
   moveCue('run'); setupEl.classList.add('hidden'); runEl.classList.add('active');
   keepAwake(); await countdown(3); beginRun();
 };
@@ -636,7 +651,7 @@ function countdown(n){
     let c=n;
     const tick=()=>{
       cdBig.textContent=c>0?c:'GO';
-      if(S.beepOn){ if(c>0) lowBeep(); else highBeep(); }
+      if(c>0) lowBeep(); else highBeep();
       if(c<0){ res(); return; }
       if(c===0){ setTimeout(res,250); return; }
       c--; setTimeout(tick,1000);
@@ -653,6 +668,7 @@ function doBeep(sec){
   else { if(leftSeg<=3 && leftSeg>0) lowBeep(); }
 }
 
+let lastInfoSec=-1;
 function loop(now){
   if(!running||paused) return;
   const t=(now-startEpoch)/1000;
@@ -664,7 +680,7 @@ function loop(now){
   }
 
   const sec=Math.floor(t);
-  if(sec!==lastSec){ lastSec=sec; doBeep(sec); }
+  if(sec!==lastSec){ lastSec=sec; doBeep(sec); if(!armed && S.dropSec>0 && sec!==lastInfoSec){ lastInfoSec=sec; refreshQueueInfo(); } }
 
   const s=segAt(t);
   if(s.type==='set'){
@@ -673,20 +689,21 @@ function loop(now){
     setK.textContent='Set'; curSet.textContent=s.g; totWrap.style.display='';
     blockLbl.textContent = S.rounds>1 ? ('Round '+s.round+' of '+S.rounds) : '';
     secLeft.textContent=Math.ceil(left); intoLabel.textContent='sec to next set';
+    elapsedBlock.style.visibility='visible';
+    elapsed.textContent=fmtClock(t - roundStartElapsed(s.round));
     const isTarget = armed && armed.targetSet===s.g;
     ring.style.stroke=(isTarget && into>55)?'var(--drop)':'var(--pulse)';
     ring.setAttribute('stroke-dashoffset', RING_LEN*(1-(into/60)));
   } else {
     const into=t-s.start, left=s.end-t, dur=s.end-s.start;
     stage.classList.add('rest');
-    setK.textContent='Rest'; curSet.textContent=fmtClock(left).replace(/^0:/,''); totWrap.style.display='none';
+    setK.textContent='Rest'; curSet.textContent=''; totWrap.style.display='none';
     blockLbl.textContent='Next: Round '+(s.round+1)+' of '+S.rounds;
-    secLeft.textContent=Math.ceil(left); intoLabel.textContent='rest remaining';
+    secLeft.textContent=fmtClock(left); intoLabel.textContent='rest remaining';
+    elapsedBlock.style.visibility='hidden';
     ring.style.stroke='var(--pulse)';
     ring.setAttribute('stroke-dashoffset', RING_LEN*(1-(into/dur)));
   }
-
-  elapsed.textContent=fmtClock(t);
 
   if(armed){
     if(!armed.fired){
@@ -696,6 +713,8 @@ function loop(now){
       else { dropBar.className='dropbar'; dropBar.textContent='Drop on set '+armed.targetSet; }
     } else if(t-dropDoneAt>1.6){ dropBar.className='dropbar done'; dropBar.textContent='Drop done'; }
   } else { dropBar.className='dropbar'; dropBar.textContent='No drop queued'; }
+
+  nowLine.textContent = (armed && armed.started) ? ('Now playing: '+armed.title) : '';
 
   if(t>=totalSec){ finish(); return; }
   raf=requestAnimationFrame(loop);
@@ -716,18 +735,19 @@ pauseBtn.onclick=()=>{
 
 function finish(){
   running=false; if(raf) cancelAnimationFrame(raf); releaseAwake();
-  if(S.beepOn){ highBeep(); setTimeout(()=>beep(1046,0.28),200); }
+  highBeep(); setTimeout(finBeep,200);
   stage.classList.add('fire'); stage.classList.remove('rest');
   setK.textContent='Done'; curSet.textContent=totalConfigured(); totWrap.style.display=''; secLeft.textContent='0'; intoLabel.textContent='complete'; blockLbl.textContent='';
+  elapsedBlock.style.visibility='visible'; elapsed.textContent=fmtClock(S.sets*60);
   dropBar.className='dropbar done'; dropBar.textContent=(armed&&armed.started)?'Complete \u2014 music still playing':'Workout complete';
   pauseBtn.disabled=true;
-  /* music is intentionally left playing */
+  nowLine.textContent = (armed && armed.started) ? ('Now playing: '+armed.title) : '';
 }
 stopBtn.onclick=()=>stopRun(true);
 function stopRun(back){
   running=false; paused=false; if(raf) cancelAnimationFrame(raf);
   ['A','B'].forEach(k=>{ try{ decks[k].player.pauseVideo(); }catch(e){} });
-  releaseAwake();
+  releaseAwake(); nowLine.textContent='';
   if(back){ runEl.classList.remove('active'); setupEl.classList.remove('hidden'); moveCue('setup'); }
 }
 function moveCue(where){ ($(where==='run'?'runCueSlot':'setupCueSlot')).appendChild(cuePanel); }
@@ -737,16 +757,16 @@ function makeIcon(){
   try{
     const c=document.createElement('canvas'); c.width=180; c.height=180; const x=c.getContext('2d');
     x.fillStyle='#0B0E11'; x.fillRect(0,0,180,180);
-    x.font='700 50px Inter, system-ui, sans-serif';
-    x.textAlign='left'; x.textBaseline='top'; x.fillStyle='#F2F5F7'; x.fillText('Drop',16,34);
-    x.textAlign='right'; x.textBaseline='bottom'; x.fillStyle='#FF6A2B'; x.fillText('Set',164,150);
+    x.font='700 46px Inter, system-ui, sans-serif';
+    x.textAlign='left'; x.textBaseline='top'; x.fillStyle='#F2F5F7'; x.fillText('DROP',14,32);
+    x.textAlign='right'; x.textBaseline='bottom'; x.fillStyle='#FF6A2B'; x.fillText('SET',166,150);
     const link=document.createElement('link'); link.rel='apple-touch-icon'; link.href=c.toDataURL('image/png'); document.head.appendChild(link);
   }catch(e){}
 }
 
 /* ============ restore ============ */
 (function restore(){
-  moveCue('setup'); makeIcon();
+  moveCue('setup'); makeIcon(); initBeeps();
   urlIn.value=store.get('ds_url','');
   S.sets=parseInt(store.get('ds_sets','10'))||10; setsVal.textContent=S.sets;
   S.rounds=parseInt(store.get('ds_rounds','1'))||1; roundsVal.textContent=S.rounds;
@@ -754,7 +774,7 @@ function makeIcon(){
   S.target=parseInt(store.get('ds_target','3'))||3; clampTarget();
   S.beepOn=store.get('ds_beep','1')==='1'; beepOn.checked=S.beepOn;
   apiKey.value=store.get('ds_apikey','');
-  renderHistory(); updateArmedLine();
+  renderHistory(); refreshQueueInfo();
 })();
 </script>
 </body>
