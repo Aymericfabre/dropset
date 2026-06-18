@@ -280,7 +280,6 @@
     </div>
 
     <button class="btn arm full" id="armBtn" style="margin-top:12px;" disabled>Queue this drop</button>
-    <button class="btn danger full" id="unqueueBtn" style="margin-top:8px; display:none;">Remove queued drop</button>
     <div class="armedline" id="armedLine">Mark a drop, then pick the set to land it on.</div>
   </div>
 
@@ -317,7 +316,7 @@ function roundStartElapsed(round){ return setStartElapsed((round-1)*S.sets+1); }
 /* ============ elements ============ */
 const vdot=$('vdot'), vtitle=$('vtitle'), seek=$('seek'), curLbl=$('curLbl'), durLbl=$('durLbl');
 const playPreview=$('playPreview'), markBtn=$('markBtn'), dropDisplay=$('dropDisplay');
-const targetVal=$('targetVal'), armBtn=$('armBtn'), unqueueBtn=$('unqueueBtn'), armedLine=$('armedLine');
+const targetVal=$('targetVal'), armBtn=$('armBtn'), armedLine=$('armedLine');
 const setsVal=$('setsVal'), roundsVal=$('roundsVal'), restVal=$('restVal'), beepOn=$('beepOn'), startBtn=$('startBtn');
 const setupEl=$('setup'), runEl=$('run'), countdownView=$('countdownView'), liveView=$('liveView'), cdBig=$('cdBig');
 const stage=$('stage'), setK=$('setK'), curSet=$('curSet'), totSet=$('totSet'), totWrap=$('totWrap'), blockLbl=$('blockLbl');
@@ -523,14 +522,14 @@ function armDrop(){
   refreshQueueInfo();
 }
 function unqueueDrop(){
-  if(!armed || armed.started) return;
+  if(!armed) return;
   try{ decks[armed.deck].player.pauseVideo(); }catch(e){}
-  armed=null; dropBar.className='dropbar'; dropBar.textContent='No drop queued'; refreshQueueInfo();
+  armed=null; dropBar.className='dropbar'; dropBar.textContent='No drop queued'; nowLine.textContent=''; refreshQueueInfo();
 }
 function swapDecks(){
   const old=liveDeckId; liveDeckId=armed.deck; cueDeckId=old;
   try{ decks[old].player.pauseVideo(); }catch(e){}
-  liveWasPlaying=false; resetCueUI();
+  liveWasPlaying=false; resetCueUI(); refreshQueueInfo();
 }
 function resetCueUI(){
   vtitle.textContent='No song loaded yet.'; S.videoId=null; S.dropSec=0;
@@ -540,7 +539,8 @@ function resetCueUI(){
 
 /* live-updating info under the Queue button */
 function refreshQueueInfo(msg){
-  unqueueBtn.style.display=(armed && !armed.started)?'block':'none';
+  if(armed){ armBtn.disabled=false; armBtn.textContent='Remove queued drop'; armBtn.classList.remove('arm'); armBtn.classList.add('danger'); }
+  else { armBtn.textContent='Queue this drop'; armBtn.classList.add('arm'); armBtn.classList.remove('danger'); armBtn.disabled=!S.videoId; }
   if(msg){ armedLine.textContent=msg; return; }
   if(armed){
     const r=roundOf(armed.targetSet), swr=setWithinRound(armed.targetSet), dropRound=(swr-1)*60;
@@ -609,7 +609,7 @@ searchBtn.onclick=runSearch;
 searchInput.addEventListener('keydown', e=>{ if(e.key==='Enter') runSearch(); });
 loadBtn.onclick=()=>{ const id=parseId(urlIn.value); if(!id){ vtitle.textContent='That did not look like a YouTube link.'; return; } store.set('ds_url',urlIn.value); loadIntoCue(id); };
 urlIn.onchange=()=>{ const id=parseId(urlIn.value); if(id){ store.set('ds_url',urlIn.value); loadIntoCue(id); } };
-playPreview.onclick=togglePreview; markBtn.onclick=markDrop; armBtn.onclick=armDrop; unqueueBtn.onclick=unqueueDrop;
+playPreview.onclick=togglePreview; markBtn.onclick=markDrop; armBtn.onclick=()=>{ if(armed) unqueueDrop(); else armDrop(); };
 
 /* ============ wake lock ============ */
 let wakeLock=null;
@@ -755,14 +755,22 @@ function moveCue(where){ ($(where==='run'?'runCueSlot':'setupCueSlot')).appendCh
 
 /* ============ home-screen icon ============ */
 function makeIcon(){
-  try{
-    const c=document.createElement('canvas'); c.width=180; c.height=180; const x=c.getContext('2d');
-    x.fillStyle='#0B0E11'; x.fillRect(0,0,180,180);
-    x.font='700 46px Inter, system-ui, sans-serif';
-    x.textAlign='left'; x.textBaseline='top'; x.fillStyle='#F2F5F7'; x.fillText('DROP',14,32);
-    x.textAlign='right'; x.textBaseline='bottom'; x.fillStyle='#FF6A2B'; x.fillText('SET',166,150);
-    const link=document.createElement('link'); link.rel='apple-touch-icon'; link.href=c.toDataURL('image/png'); document.head.appendChild(link);
-  }catch(e){}
+  const draw=()=>{
+    try{
+      const c=document.createElement('canvas'); c.width=180; c.height=180; const x=c.getContext('2d');
+      x.fillStyle='#0B0E11'; x.fillRect(0,0,180,180);
+      x.font='700 60px "Saira Condensed", system-ui, sans-serif';
+      x.textAlign='left'; x.textBaseline='top'; x.fillStyle='#F2F5F7'; x.fillText('DROP',16,28);
+      x.textAlign='right'; x.textBaseline='bottom'; x.fillStyle='#FF6A2B'; x.fillText('SET',164,154);
+      let link=document.querySelector('link[rel="apple-touch-icon"]');
+      if(!link){ link=document.createElement('link'); link.rel='apple-touch-icon'; document.head.appendChild(link); }
+      link.href=c.toDataURL('image/png');
+    }catch(e){}
+  };
+  if(document.fonts && document.fonts.load){
+    document.fonts.load('700 60px "Saira Condensed"').then(draw).catch(draw);
+    document.fonts.ready.then(draw).catch(()=>{});
+  } else { draw(); }
 }
 
 /* ============ restore ============ */
