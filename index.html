@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="theme-color" content="#0B0E11" />
@@ -19,7 +19,7 @@
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; padding:0; background:var(--ink); color:var(--text); font-family:var(--body);}
-  body{min-height:100vh; padding:max(18px,env(safe-area-inset-top)) 18px calc(20px + env(safe-area-inset-bottom)); -webkit-user-select:none; user-select:none;}
+  body{min-height:100vh; padding:max(18px,env(safe-area-inset-top)) 18px calc(20px + env(safe-area-inset-bottom)); -webkit-user-select:none; user-select:none; touch-action:manipulation;}
   .wrap{max-width:480px; margin:0 auto;}
 
   .logo{position:relative; width:148px; height:64px; margin-bottom:16px;}
@@ -40,7 +40,7 @@
   .row{display:flex; gap:10px;} .row > *{flex:1;}
   .grid2{display:flex; gap:12px;} .grid2 > *{flex:1;}
 
-  button{font-family:var(--body); cursor:pointer; border:none; color:var(--text);}
+  button{font-family:var(--body); cursor:pointer; border:none; color:var(--text); touch-action:manipulation;}
   .btn{background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:13px 16px; font-size:15px; font-weight:600; transition:transform .05s ease, border-color .15s, background .15s;}
   .btn:active{transform:scale(.97);}
   .btn.ghost{background:transparent;}
@@ -188,8 +188,6 @@
           <div class="t-text">Beep on the minute</div>
           <label class="switch"><input type="checkbox" id="beepOn" checked><span class="slider"></span></label>
         </div>
-        <label style="margin-top:6px;">YouTube search key <small style="text-transform:none; letter-spacing:0;">&mdash; optional, blank uses free search</small></label>
-        <input type="text" id="apiKey" placeholder="Leave blank if a key is built in" autocapitalize="off" autocorrect="off" spellcheck="false">
       </div>
 
       <div id="setupCueSlot"></div>
@@ -320,7 +318,7 @@ function roundStartElapsed(round){ return setStartElapsed((round-1)*S.sets+1); }
 const vdot=$('vdot'), vtitle=$('vtitle'), seek=$('seek'), curLbl=$('curLbl'), durLbl=$('durLbl');
 const playPreview=$('playPreview'), markBtn=$('markBtn'), dropDisplay=$('dropDisplay');
 const targetVal=$('targetVal'), armBtn=$('armBtn'), unqueueBtn=$('unqueueBtn'), armedLine=$('armedLine');
-const setsVal=$('setsVal'), roundsVal=$('roundsVal'), restVal=$('restVal'), beepOn=$('beepOn'), apiKey=$('apiKey'), startBtn=$('startBtn');
+const setsVal=$('setsVal'), roundsVal=$('roundsVal'), restVal=$('restVal'), beepOn=$('beepOn'), startBtn=$('startBtn');
 const setupEl=$('setup'), runEl=$('run'), countdownView=$('countdownView'), liveView=$('liveView'), cdBig=$('cdBig');
 const stage=$('stage'), setK=$('setK'), curSet=$('curSet'), totSet=$('totSet'), totWrap=$('totWrap'), blockLbl=$('blockLbl');
 const ring=$('ring'), secLeft=$('secLeft'), intoLabel=$('intoLabel'), elapsed=$('elapsed'), elapsedBlock=$('elapsedBlock'), nowLine=$('nowLine');
@@ -349,9 +347,9 @@ function initBeeps(){
   }catch(e){}
 }
 function primeBeeps(){
-  [AUD.low,AUD.high,AUD.fin].forEach(a=>{ if(!a) return; try{ a.muted=true; const p=a.play(); if(p&&p.catch)p.catch(()=>{}); setTimeout(()=>{ try{ a.pause(); a.currentTime=0; a.muted=false; }catch(e){} },120); }catch(e){} });
+  [AUD.low,AUD.high,AUD.fin].forEach(a=>{ if(!a) return; try{ a.volume=0; const p=a.play(); if(p&&p.catch)p.catch(()=>{}); setTimeout(()=>{ try{ a.pause(); a.currentTime=0; a.volume=1; }catch(e){} },90); }catch(e){} });
 }
-function playBeep(a){ if(!a||!S.beepOn) return; try{ a.currentTime=0; const p=a.play(); if(p&&p.catch)p.catch(()=>{}); }catch(e){} }
+function playBeep(a){ if(!a||!S.beepOn) return; try{ a.currentTime=0; a.volume=1; const p=a.play(); if(p&&p.catch)p.catch(()=>{}); }catch(e){} }
 const lowBeep=()=>playBeep(AUD.low), highBeep=()=>playBeep(AUD.high), finBeep=()=>playBeep(AUD.fin);
 
 /* ============ two-deck YouTube engine ============ */
@@ -452,7 +450,7 @@ function markDrop(){
 let lastResults=[];
 function fetchTimeout(url,ms){ const c=new AbortController(); const id=setTimeout(()=>c.abort(),ms); return fetch(url,{signal:c.signal}).finally(()=>clearTimeout(id)); }
 async function searchYouTube(q){
-  const key=((apiKey.value||'').trim()) || BUILTIN_KEY;
+  const key=BUILTIN_KEY;
   if(key){
     const u='https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q='+encodeURIComponent(q)+'&key='+key;
     const r=await fetch(u); if(!r.ok) throw new Error('key'); const j=await r.json();
@@ -607,7 +605,6 @@ $('restPlus').onclick =()=>{ S.restSec=Math.min(600,S.restSec+30); restVal.textC
 $('targetMinus').onclick=()=>{ S.target=Math.max(1,S.target-1); targetVal.textContent=S.target; store.set('ds_target',S.target); refreshQueueInfo(); };
 $('targetPlus').onclick =()=>{ S.target=Math.min(totalConfigured(),S.target+1); targetVal.textContent=S.target; store.set('ds_target',S.target); refreshQueueInfo(); };
 beepOn.onchange=()=>{ S.beepOn=beepOn.checked; store.set('ds_beep',S.beepOn?'1':'0'); };
-apiKey.onchange=()=>store.set('ds_apikey', apiKey.value.trim());
 searchBtn.onclick=runSearch;
 searchInput.addEventListener('keydown', e=>{ if(e.key==='Enter') runSearch(); });
 loadBtn.onclick=()=>{ const id=parseId(urlIn.value); if(!id){ vtitle.textContent='That did not look like a YouTube link.'; return; } store.set('ds_url',urlIn.value); loadIntoCue(id); };
@@ -664,8 +661,8 @@ function beginRun(){ countdownView.style.display='none'; liveView.style.display=
 function doBeep(sec){
   if(!S.beepOn || sec<=0 || sec>=totalSec) return;
   const s=segAt(sec); const intoSeg=sec-s.start, leftSeg=s.end-sec;
-  if(s.type==='set'){ if(intoSeg===0) highBeep(); else if(leftSeg<=3 && leftSeg>0) lowBeep(); }
-  else { if(leftSeg<=3 && leftSeg>0) lowBeep(); }
+  if(intoSeg===0) highBeep();
+  else if(leftSeg<=3 && leftSeg>0) lowBeep();
 }
 
 let lastInfoSec=-1;
@@ -688,9 +685,13 @@ function loop(now){
     stage.classList.remove('rest');
     setK.textContent='Set'; curSet.textContent=s.g; totWrap.style.display='';
     blockLbl.textContent = S.rounds>1 ? ('Round '+s.round+' of '+S.rounds) : '';
-    secLeft.textContent=Math.ceil(left); intoLabel.textContent='sec to next set';
+    secLeft.textContent=Math.ceil(left);
+    let lbl='sec to next set';
+    if(s.g===totalConfigured()) lbl='sec to finish';
+    else if(setWithinRound(s.g)===S.sets && s.round<S.rounds && S.restSec>0) lbl='sec to next rest';
+    intoLabel.textContent=lbl;
     elapsedBlock.style.visibility='visible';
-    elapsed.textContent=fmtClock(t - roundStartElapsed(s.round));
+    elapsed.textContent=fmtClock(Math.floor(t - roundStartElapsed(s.round)));
     const isTarget = armed && armed.targetSet===s.g;
     ring.style.stroke=(isTarget && into>55)?'var(--drop)':'var(--pulse)';
     ring.setAttribute('stroke-dashoffset', RING_LEN*(1-(into/60)));
@@ -699,7 +700,7 @@ function loop(now){
     stage.classList.add('rest');
     setK.textContent='Rest'; curSet.textContent=''; totWrap.style.display='none';
     blockLbl.textContent='Next: Round '+(s.round+1)+' of '+S.rounds;
-    secLeft.textContent=fmtClock(left); intoLabel.textContent='rest remaining';
+    secLeft.textContent=fmtClock(Math.ceil(left)); intoLabel.textContent='rest remaining';
     elapsedBlock.style.visibility='hidden';
     ring.style.stroke='var(--pulse)';
     ring.setAttribute('stroke-dashoffset', RING_LEN*(1-(into/dur)));
@@ -773,7 +774,6 @@ function makeIcon(){
   S.restSec=parseInt(store.get('ds_rest','0'))||0; restVal.textContent=fmtClock(S.restSec);
   S.target=parseInt(store.get('ds_target','3'))||3; clampTarget();
   S.beepOn=store.get('ds_beep','1')==='1'; beepOn.checked=S.beepOn;
-  apiKey.value=store.get('ds_apikey','');
   renderHistory(); refreshQueueInfo();
 })();
 </script>
