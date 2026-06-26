@@ -138,6 +138,8 @@
   .hrow .meta .d{font-size:12px; color:var(--pulse); font-family:var(--display); font-weight:700; margin-top:3px;}
   .hrow .load{background:var(--surface-2); border:1px solid var(--line); border-radius:9px; padding:9px 12px; font-size:13px; font-weight:600; flex:none;}
   .hrow .load:active{background:var(--line);}
+  .hrow .del{background:transparent; border:1px solid var(--line); border-radius:9px; width:38px; height:38px; font-size:18px; color:var(--muted); flex:none;}
+  .hrow .del:active{background:var(--line); color:var(--drop);}
   .empty{text-align:center; color:var(--muted); font-size:14px; padding:50px 20px; line-height:1.6;}
 
   .footer-note{font-size:11px; color:var(--muted); text-align:center; margin-top:16px; line-height:1.5;}
@@ -233,7 +235,10 @@
     </div>
   </div>
 
-  <div id="tabHistory"><div id="historyList"></div></div>
+  <div id="tabHistory">
+    <input type="text" id="histSearch" placeholder="Search saved songs" autocapitalize="off" style="margin-bottom:14px;">
+    <div id="historyList"></div>
+  </div>
 
   <div id="cuePanel" class="card">
     <p class="eyebrow">Cue a drop</p>
@@ -408,7 +413,7 @@ function pollTitle(deckId){
   const iv=setInterval(()=>{
     n++; let t='';
     try{ const vd=d.player.getVideoData(); t=vd&&vd.title?vd.title:''; }catch(e){}
-    if(t){ d.title=t; if(deckId===cueDeckId) vtitle.textContent=t; clearInterval(iv); refreshQueueInfo(); }
+    if(t){ d.title=t; if(deckId===cueDeckId) vtitle.textContent=t; clearInterval(iv); updateHistoryTitle(d.id, t); refreshQueueInfo(); }
     else if(n>24){ clearInterval(iv); }
   },300);
 }
@@ -442,6 +447,7 @@ seek.addEventListener('input', ()=>{
 function markDrop(){
   const v=Math.round(parseFloat(seek.value)||0);
   S.dropSec=v; dropDisplay.textContent=fmtClock(v); store.set('ds_drop',String(v));
+  if(S.videoId) saveHistory(S.videoId, cueDeck().title||'', v);
   refreshQueueInfo();
 }
 
@@ -544,9 +550,13 @@ function refreshQueueInfo(msg){
   if(msg){ armedLine.textContent=msg; return; }
   if(armed){
     const r=roundOf(armed.targetSet), swr=setWithinRound(armed.targetSet), dropRound=(swr-1)*60;
-    let l='Queued <b>'+escapeHtml(armed.title)+'</b><br>drops at <span class="dp">'+fmtClock(dropRound)+'</span>';
+    const startRound=armed.playAtT - roundStartElapsed(r);
+    let l='Queued <b>'+escapeHtml(armed.title||'song')+'</b><br>drops at <span class="dp">'+fmtClock(dropRound)+'</span>';
     if(S.rounds>1) l+=' in round '+r;
-    l+=' (set '+armed.targetSet+')'+(armed.started?' \u2014 playing':'');
+    l+=' (set '+armed.targetSet+')'+(armed.started?' \u2014 playing':'')+'<br>';
+    l+= armed.seekStart>0
+      ? ('Starts at <span class="pulse">'+fmtClock(Math.max(0,startRound))+'</span>, '+fmtClock(armed.seekStart)+' into the track')
+      : ('Starts at <span class="pulse">'+fmtClock(startRound)+'</span>');
     armedLine.innerHTML=l; return;
   }
   if(!(S.videoId && S.dropSec>0)){ armedLine.textContent='Mark a drop, then pick the set to land it on.'; return; }
@@ -569,18 +579,34 @@ function saveHistory(id,title,dropSec){
   h.unshift({id, title, dropSec, ts:Date.now()}); h=h.slice(0,60);
   store.set('ds_history', JSON.stringify(h)); renderHistory();
 }
+function updateHistoryTitle(id,title){
+  if(!title) return;
+  let h=getHistory(), changed=false;
+  h.forEach(x=>{ if(x.id===id && x.title!==title){ x.title=title; changed=true; } });
+  if(changed){ store.set('ds_history', JSON.stringify(h)); renderHistory(); }
+}
+function removeFromHistory(id){
+  store.set('ds_history', JSON.stringify(getHistory().filter(x=>x.id!==id))); renderHistory();
+}
 function renderHistory(){
-  const h=getHistory(); const box=$('historyList');
-  if(!h.length){ box.innerHTML='<div class="empty">No songs yet.<br>Queue a drop on the Workout tab and it will show up here, ready to reload.</div>'; return; }
-  box.innerHTML=h.map((x,i)=>'<div class="hrow"><img src="'+thumb(x.id)+'" loading="lazy"><div class="meta"><div class="t">'+escapeHtml(x.title)+'</div><div class="d">Drop at '+fmtClock(x.dropSec)+'</div></div><button class="load" data-i="'+i+'">Load</button></div>').join('');
+  const box=$('historyList');
+  const q=(($('histSearch')&&$('histSearch').value)||'').trim().toLowerCase();
+  let h=getHistory();
+  if(q) h=h.filter(x=>(x.title||'').toLowerCase().includes(q));
+  if(!getHistory().length){ box.innerHTML='<div class="empty">No songs yet.<br>Mark a drop on the Workout tab and it will show up here, ready to reload.</div>'; return; }
+  if(!h.length){ box.innerHTML='<div class="empty">No songs match that search.</div>'; return; }
+  box.innerHTML=h.map(x=>'<div class="hrow"><img src="'+thumb(x.id)+'" loading="lazy"><div class="meta"><div class="t">'+escapeHtml(x.title||'Untitled')+'</div><div class="d">Drop at '+fmtClock(x.dropSec)+'</div></div><button class="load" data-id="'+x.id+'">Load</button><button class="del" data-id="'+x.id+'">&times;</button></div>').join('');
 }
 $('historyList').addEventListener('click', e=>{
-  const b=e.target.closest('.load[data-i]'); if(!b) return;
-  const x=getHistory()[parseInt(b.dataset.i)]; if(!x) return;
+  const del=e.target.closest('.del[data-id]');
+  if(del){ removeFromHistory(del.dataset.id); return; }
+  const b=e.target.closest('.load[data-id]'); if(!b) return;
+  const x=getHistory().find(v=>v.id===b.dataset.id); if(!x) return;
   urlIn.value='https://youtu.be/'+x.id; loadIntoCue(x.id, x.title);
   S.dropSec=x.dropSec; dropDisplay.textContent=fmtClock(x.dropSec);
   switchTab('workout'); refreshQueueInfo();
 });
+$('histSearch').addEventListener('input', renderHistory);
 
 /* ============ tabs / source toggle ============ */
 function switchTab(which){
@@ -602,7 +628,7 @@ $('roundsMinus').onclick=()=>{ S.rounds=Math.max(1,S.rounds-1); roundsVal.textCo
 $('roundsPlus').onclick =()=>{ S.rounds=Math.min(10,S.rounds+1); roundsVal.textContent=S.rounds; clampTarget(); store.set('ds_rounds',S.rounds); refreshQueueInfo(); };
 $('restMinus').onclick=()=>{ S.restSec=Math.max(0,S.restSec-30); restVal.textContent=fmtClock(S.restSec); store.set('ds_rest',S.restSec); refreshQueueInfo(); };
 $('restPlus').onclick =()=>{ S.restSec=Math.min(600,S.restSec+30); restVal.textContent=fmtClock(S.restSec); store.set('ds_rest',S.restSec); refreshQueueInfo(); };
-$('targetMinus').onclick=()=>{ S.target=Math.max(1,S.target-1); targetVal.textContent=S.target; store.set('ds_target',S.target); refreshQueueInfo(); };
+$('targetMinus').onclick=()=>{ const lo=running?earliestFutureSet(curElapsed()):1; S.target=Math.max(lo,S.target-1); targetVal.textContent=S.target; store.set('ds_target',S.target); refreshQueueInfo(); };
 $('targetPlus').onclick =()=>{ S.target=Math.min(totalConfigured(),S.target+1); targetVal.textContent=S.target; store.set('ds_target',S.target); refreshQueueInfo(); };
 beepOn.onchange=()=>{ S.beepOn=beepOn.checked; store.set('ds_beep',S.beepOn?'1':'0'); };
 searchBtn.onclick=runSearch;
@@ -618,7 +644,8 @@ function releaseAwake(){ try{ wakeLock&&wakeLock.release(); wakeLock=null; }catc
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&running&&!wakeLock) keepAwake(); });
 
 /* ============ run ============ */
-let running=false, paused=false, raf=null, startEpoch=0, pauseStart=0, totalSec=0, lastSec=-1, dropDoneAt=0, schedule=[];
+const BEEP_LEAD=0.08;
+let running=false, paused=false, raf=null, startEpoch=0, pauseStart=0, totalSec=0, lastSec=-1, lastBeepSec=-1, dropDoneAt=0, schedule=[];
 
 function buildSchedule(){
   schedule=[]; let tt=0, g=0;
@@ -656,7 +683,7 @@ function countdown(n){
     tick();
   });
 }
-function beginRun(){ countdownView.style.display='none'; liveView.style.display='block'; running=true; startEpoch=performance.now(); raf=requestAnimationFrame(loop); }
+function beginRun(){ countdownView.style.display='none'; liveView.style.display='block'; running=true; startEpoch=performance.now(); lastSec=-1; lastBeepSec=-1; lastInfoSec=-1; raf=requestAnimationFrame(loop); }
 
 function doBeep(sec){
   if(!S.beepOn || sec<=0 || sec>=totalSec) return;
@@ -676,8 +703,22 @@ function loop(now){
     armed.started=true; swapDecks();
   }
 
+  // auto-remove a queued song once it has played through to the end
+  if(armed && armed.started && armed.fired){
+    try{ if(decks[liveDeckId].player.getPlayerState()===0) unqueueDrop(); }catch(e){}
+  }
+
+  // beeps: fire slightly early to offset audio latency, and never skip a second
+  const dueTo=Math.floor(t+BEEP_LEAD);
+  if(dueTo-lastBeepSec>2) lastBeepSec=dueTo;
+  while(lastBeepSec<dueTo){ lastBeepSec++; doBeep(lastBeepSec); }
+
   const sec=Math.floor(t);
-  if(sec!==lastSec){ lastSec=sec; doBeep(sec); if(!armed && S.dropSec>0 && sec!==lastInfoSec){ lastInfoSec=sec; refreshQueueInfo(); } }
+  if(sec!==lastSec){
+    lastSec=sec;
+    if(running){ const ef=earliestFutureSet(t); if(S.target<ef){ S.target=Math.min(ef,totalConfigured()); targetVal.textContent=S.target; if(!armed) refreshQueueInfo(); } }
+    if(!armed && S.dropSec>0 && sec!==lastInfoSec){ lastInfoSec=sec; refreshQueueInfo(); }
+  }
 
   const s=segAt(t);
   if(s.type==='set'){
@@ -692,8 +733,7 @@ function loop(now){
     intoLabel.textContent=lbl;
     elapsedBlock.style.visibility='visible';
     elapsed.textContent=fmtClock(Math.floor(t - roundStartElapsed(s.round)));
-    const isTarget = armed && armed.targetSet===s.g;
-    ring.style.stroke=(isTarget && into>55)?'var(--drop)':'var(--pulse)';
+    ring.style.stroke=(left<=5)?'var(--drop)':'var(--pulse)';
     ring.setAttribute('stroke-dashoffset', RING_LEN*(1-(into/60)));
   } else {
     const into=t-s.start, left=s.end-t, dur=s.end-s.start;
@@ -702,7 +742,7 @@ function loop(now){
     blockLbl.textContent='Next: Round '+(s.round+1)+' of '+S.rounds;
     secLeft.textContent=fmtClock(Math.ceil(left)); intoLabel.textContent='rest remaining';
     elapsedBlock.style.visibility='hidden';
-    ring.style.stroke='var(--pulse)';
+    ring.style.stroke=(left<=5)?'var(--drop)':'var(--pulse)';
     ring.setAttribute('stroke-dashoffset', RING_LEN*(1-(into/dur)));
   }
 
@@ -715,7 +755,11 @@ function loop(now){
     } else if(t-dropDoneAt>1.6){ dropBar.className='dropbar done'; dropBar.textContent='Drop done'; }
   } else { dropBar.className='dropbar'; dropBar.textContent='No drop queued'; }
 
-  nowLine.textContent = (armed && armed.started) ? ('Now playing: '+armed.title) : '';
+  let np='';
+  if(armed && armed.started){
+    try{ const L=decks[liveDeckId].player; if(L && L.getPlayerState && L.getPlayerState()===1){ const vd=L.getVideoData(); np='Now playing: '+((vd&&vd.title)?vd.title:(armed.title||'song')); } }catch(e){}
+  }
+  nowLine.textContent=np;
 
   if(t>=totalSec){ finish(); return; }
   raf=requestAnimationFrame(loop);
@@ -759,9 +803,9 @@ function makeIcon(){
     try{
       const c=document.createElement('canvas'); c.width=180; c.height=180; const x=c.getContext('2d');
       x.fillStyle='#0B0E11'; x.fillRect(0,0,180,180);
-      x.font='700 60px "Saira Condensed", system-ui, sans-serif';
-      x.textAlign='left'; x.textBaseline='top'; x.fillStyle='#F2F5F7'; x.fillText('DROP',16,28);
-      x.textAlign='right'; x.textBaseline='bottom'; x.fillStyle='#FF6A2B'; x.fillText('SET',164,154);
+      x.font='700 56px "Saira Condensed", system-ui, sans-serif';
+      x.textAlign='left'; x.textBaseline='top'; x.fillStyle='#F2F5F7'; x.fillText('DROP',18,26);
+      x.textAlign='right'; x.textBaseline='top'; x.fillStyle='#FF6A2B'; x.fillText('SET',162,96);
       let link=document.querySelector('link[rel="apple-touch-icon"]');
       if(!link){ link=document.createElement('link'); link.rel='apple-touch-icon'; document.head.appendChild(link); }
       link.href=c.toDataURL('image/png');
